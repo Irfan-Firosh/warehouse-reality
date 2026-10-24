@@ -1,0 +1,435 @@
+<!doctype html>
+<!-- Serve over HTTP (ES modules and the GLB fetch fail on file://):
+     python3 docs/mockups/serve.py  →  http://127.0.0.1:8765/dashboard.html (sends Cache-Control: no-store) -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Warehouse Sim Mockup</title>
+<link rel="icon" href="data:," />
+<script>
+  if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.classList.add("dark");
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.11/dist/index.global.js"></script>
+<style type="text/tailwindcss">
+  @custom-variant dark (&:where(.dark, .dark *));
+  @theme {
+    --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, monospace;
+    --color-primary-300: oklch(78% 0.14 255);
+    --color-primary-400: oklch(68% 0.17 255);
+    --color-primary-500: oklch(58% 0.19 255);
+    --color-primary-600: oklch(48% 0.18 255);
+  }
+  html, body { height: 100%; }
+  body { @apply bg-zinc-50 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50 font-sans antialiased; }
+  @utility panel { @apply rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900; }
+  @utility muted { @apply text-zinc-600 dark:text-zinc-400; }
+  @utility lbl { @apply text-[11px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400; }
+  @utility row { @apply flex items-baseline justify-between gap-2 py-0.5 text-sm; }
+  @utility num { @apply font-mono tabular-nums; }
+  @utility chip { @apply inline-flex whitespace-nowrap items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none; }
+  @utility src { @apply chip bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300; }
+  @utility drv { @apply chip bg-teal-100 text-teal-800 dark:bg-teal-400/15 dark:text-teal-300; }
+  @utility unk { @apply chip border border-dashed border-zinc-400 text-zinc-600 dark:border-zinc-600 dark:text-zinc-400; }
+  @utility hyp { @apply chip bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300; }
+  @utility ill { @apply chip border border-dotted border-primary-500/70 text-primary-600 dark:text-primary-300; }
+  @utility link { @apply font-mono text-primary-600 underline decoration-dotted underline-offset-2 hover:text-primary-500 dark:text-primary-300; }
+  @utility btn { @apply inline-flex h-8 items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-primary-500 disabled:opacity-60 dark:border-zinc-800 dark:hover:bg-zinc-800; }
+  @utility btn-on { @apply bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900; }
+  @utility tab { @apply border-b-2 border-transparent px-2.5 py-2 text-zinc-600 aria-selected:border-primary-500 aria-selected:font-medium aria-selected:text-zinc-950 dark:text-zinc-400 dark:aria-selected:text-zinc-50; }
+  @utility seg { @apply rounded px-2 py-1 text-[11px] text-zinc-600 aria-pressed:bg-zinc-200 aria-pressed:text-zinc-950 dark:text-zinc-400 dark:aria-pressed:bg-zinc-800 dark:aria-pressed:text-zinc-50; }
+  @utility row-on { @apply bg-primary-500/15; }
+  @utility tl { @apply flex shrink-0 flex-col gap-0.5 rounded-md border px-2 py-1.5 text-[11px] leading-tight; }
+  #layout { --l: 280px; --r: 340px; }
+  #layout[data-left="closed"] { --l: 40px; }
+  #layout[data-right="closed"] { --r: 40px; }
+  [data-collapsible][data-state="closed"] [data-body] { display: none; }
+  [data-collapsible]:not([data-state="closed"]) [data-rail] { display: none; }
+  summary::-webkit-details-marker { display: none; }
+  @utility fold { @apply grid size-6 place-items-center rounded text-xs text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-zinc-400 dark:hover:bg-zinc-800; }
+  @utility rail { @apply flex h-full w-full flex-col items-center gap-2 py-3 text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-primary-500 dark:text-zinc-400 dark:hover:bg-zinc-800; }
+  @utility kv { @apply grid grid-cols-[92px_1fr] gap-x-2 gap-y-0.5 text-xs; }
+</style>
+</head>
+<body>
+<div class="flex h-full min-h-[760px] flex-col gap-2 p-2">
+
+  <!-- Mockup disclaimer and chip legend -->
+  <div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-dashed border-amber-500/60 px-3 py-1 text-[11px] text-amber-800 dark:text-amber-300">
+    <span>Design mockup: run state, IDs, times and counts are placeholders, not facility data or run results.</span>
+    <span class="muted">Chips:</span>
+    <span class="src">S1</span><span class="muted">published spec</span>
+    <span class="drv">derived</span><span class="muted">derived conversion</span>
+    <span class="hyp">hypothetical</span><span class="muted">injected</span>
+    <span class="unk">unknown</span><span class="muted">no evidence</span>
+    <span class="ill">illus→sim</span><span class="ill">illus→user</span><span class="ill">illus→meas</span><span class="muted">placeholder; the app shows simulated / user-supplied / measured</span>
+  </div>
+
+  <!-- Top bar -->
+  <header class="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2">
+    <div class="flex items-center gap-2">
+      <div class="grid size-7 place-items-center rounded-md bg-primary-600 text-xs font-bold text-white">WS</div>
+      <span class="font-semibold">Warehouse Sim</span>
+    </div>
+    <div class="flex flex-col leading-tight"><span class="lbl">Profile</span><span class="text-sm">DFW Commerce Center Bldg I <span class="src">v1 · S1</span></span></div>
+    <div class="flex flex-col leading-tight"><span class="lbl">Workload</span><span class="text-sm">Demo day v2 <span class="drv">volume derived</span> <span class="ill">times illus→user</span></span></div>
+    <div class="flex flex-col leading-tight"><span class="lbl">Run</span><span class="text-sm">Distributed agents · fallback: FCFS rules, 0 actions <span class="ill">illus→sim</span></span></div>
+    <div class="flex flex-col leading-tight"><span class="lbl">Logical time</span><span class="num text-sm">Day 1 · 14:07:30</span></div>
+    <div class="flex flex-col leading-tight"><span class="lbl">Evidence</span><span class="text-sm"><button type="button" data-tab="evidence" class="unk">14 DFW fields unknown</button> <button type="button" data-tab="evidence" class="drv">1 derived input</button></span></div>
+    <div class="ml-auto flex flex-wrap items-center gap-1.5">
+      <span class="mr-1 inline-flex items-center gap-1.5 rounded-md bg-primary-500/10 px-2 py-1 text-[11px] text-primary-600 dark:text-primary-300">
+        <span class="size-1.5 animate-pulse rounded-full bg-primary-500"></span>Time paused · 2 agents deciding (LLM)
+      </span>
+      <button class="btn" aria-label="Pause">❚❚ Pause</button>
+      <button class="btn" aria-label="Next event">⏭ Next event</button>
+      <div class="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800" title="Display pacing only; never changes outcomes">
+        <button class="h-8 px-2 text-xs">1×</button><button class="btn-on h-8 px-2 text-xs">4×</button><button class="h-8 px-2 text-xs">16×</button>
+      </div>
+      <button class="btn">⚑ Checkpoint</button>
+      <button class="btn">⑂ Branch</button>
+      <button class="btn">⇄ Compare</button>
+      <button class="btn border-amber-500/50 text-amber-700 dark:text-amber-300">⚡ Inject disruption</button>
+      <button id="theme" class="btn" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main id="layout" class="grid min-h-0 flex-1 grid-cols-[var(--l)_1fr_var(--r)] gap-2">
+
+    <!-- Left: facility resources -->
+    <aside data-collapsible="left" data-layout="left" class="panel flex min-h-0 flex-col overflow-hidden">
+      <div data-body class="flex min-h-0 flex-1 flex-col">
+      <div class="flex items-center justify-between border-b border-zinc-200 px-3 py-1 dark:border-zinc-800">
+        <span class="lbl">Facility</span>
+        <button type="button" class="fold" data-collapse="left" aria-controls="left-body" aria-label="Collapse facility panel">«</button>
+      </div>
+      <div id="left-body" class="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Published capacity</span></summary>
+        <div class="row"><span>Dock-high doors</span><span><span class="num">182</span> <span class="src">S1</span></span></div>
+        <div class="row"><span>Ramp doors</span><span><span class="num">4</span> <span class="src">S1</span></span></div>
+        <div class="row"><span>Trailer spaces</span><span><span class="num">235</span> <span class="src">S1</span></span></div>
+        <div class="row"><span>Auto spaces</span><span><span class="num">572</span> <span class="src">S1</span></span></div>
+        <div class="row"><span>Floor area</span><span><span class="num">1,000,584 sf</span> <span class="src">S1</span></span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Workload volume</span></summary>
+        <div class="row"><span>DFW daily truck visits</span><span class="unk">unknown</span></div>
+        <div class="row"><span>Scenario visits/day</span><span><span class="num">≈117</span> <button type="button" data-tab="evidence" class="drv">derived ⓘ</button></span></div>
+        <p class="muted text-[11px] leading-snug">ITE/NAIOP high-cube warehouse study (Oct 2016), Table 5: 0.233 five-axle trip ends per 1,000 GSF × 1,000.584 ÷ 2. Other buildings, not DFW.</p>
+        <div class="row"><span>Arrival times, durations</span><span class="ill">illus→user</span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Occupancy now</span><span class="ill">illus→sim</span></summary>
+        <div class="row"><span>Doors occupied</span><span class="num"><span data-count="doorsOccupied">–</span> / 182</span></div>
+        <div class="row muted text-xs"><span>serving · blocked</span><span class="num"><span data-count="doorsServing">–</span> · <span data-count="doorsBlocked">–</span></span></div>
+        <div class="row"><span>Closed · reserved</span><span class="num">D-108 <span class="hyp">H-1</span> · D-112</span></div>
+        <div class="row"><span>Stalls occupied</span><span class="num"><span data-count="stallsOccupied">–</span> / 235</span></div>
+        <div class="row"><span>Observed DFW occupancy</span><span class="unk">unknown</span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Throughput</span><span class="ill">illus→sim</span></summary>
+        <div class="row"><span>Completed visits since 06:00</span><span class="num">38</span></div>
+        <div class="row"><span>Departures, last 60 min</span><span class="num">6</span></div>
+        <div class="row"><span>Observed DFW throughput</span><span class="unk">unknown</span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Queues and dependencies</span><span class="ill">illus→sim</span></summary>
+        <div class="row"><span>At gate</span><span class="num" data-count="gateQueue">–</span></div>
+        <div class="row"><span>Yard, waiting for door</span><span class="num" data-count="yardWaiting">–</span></div>
+        <div class="row"><span>Outbound blocked by freight</span><span class="num text-amber-700 dark:text-amber-400" data-count="outboundBlocked">–</span></div>
+        <ul id="deps" class="mb-1 ml-1 space-y-0.5 border-l-2 border-amber-500/40 pl-2 text-[11px] leading-snug"></ul>
+        <div class="row"><span>Open escalations</span><span class="num">0</span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center justify-between gap-2"><span class="flex items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Resources</span></summary>
+        <div class="row"><span>Forklifts</span><span><span class="unk">DFW unknown</span> <span class="ill">24 illus→user</span></span></div>
+        <div class="row"><span>Yard tractors</span><span><span class="unk">DFW unknown</span> <span class="ill">6 illus→user</span></span></div>
+        <div class="row"><span>Crews</span><span><span class="unk">DFW unknown</span> <span class="ill">12 illus→user</span></span></div>
+        <div class="row"><span>Out of service</span><span><span class="num">F-07, D-108</span> <span class="hyp">hypothetical</span></span></div>
+      </details>
+      <details open class="group">
+        <summary class="lbl mb-1 flex cursor-pointer list-none items-center gap-1"><span aria-hidden="true" class="transition-transform motion-reduce:transition-none group-open:rotate-90">▸</span>Missing DFW evidence (PRD §4.2) · 14</summary>
+        <ul class="flex flex-wrap gap-1">
+          <li class="unk">daily truck visits</li><li class="unk">time-of-day arrivals</li><li class="unk">trailer occupancy</li>
+          <li class="unk">forklifts</li><li class="unk">yard tractors</li><li class="unk">workers / shift</li>
+          <li class="unk">crew composition</li><li class="unk">carrier count</li><li class="unk">dock direction split</li>
+          <li class="unk">service durations</li><li class="unk">transfer routes</li><li class="unk">gate capacity</li>
+          <li class="unk">movement speeds</li><li class="unk">operating priorities</li>
+        </ul>
+      </details>
+      </div>
+      </div>
+      <button type="button" data-rail class="rail" data-collapse="left" aria-controls="left-body" aria-label="Expand facility panel"><span>»</span><span class="lbl [writing-mode:vertical-rl]">Facility</span></button>
+    </aside>
+
+    <!-- Center: scene -->
+    <section class="panel relative min-h-0 overflow-hidden">
+      <div id="scene" class="absolute inset-0">
+        <div id="scene-fallback" class="grid h-full place-items-center p-6 text-center text-sm muted">
+          3D scene not loaded. It needs WebGL and an HTTP server (python3 docs/mockups/serve.py). The Entities tab lists the same records as text.
+        </div>
+      </div>
+      <!-- Overlays: a top row and a bottom row in one column, so they never cover each other -->
+      <div class="pointer-events-none absolute inset-3 flex flex-col justify-between gap-2">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span class="w-fit rounded bg-zinc-900/80 px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-amber-300">Schematic layout · door/stall positions and side split not surveyed</span>
+          <span class="w-fit rounded bg-zinc-900/70 px-2 py-1 font-mono text-[10px] text-zinc-300">1,642 × 600 ft shell · 185 ft truck court (S1)</span>
+          <span id="model-credit" hidden class="pointer-events-auto w-fit max-w-md rounded bg-zinc-900/70 px-2 py-1 text-[10px] text-zinc-300 [&_a]:underline [&_a]:underline-offset-2">Models: <a href="https://poly.pizza/m/DTQBuenKJY">"Forklift"</a> by KolosStudios, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>, modified (rescaled, tinted) · semi by WilliWam, container and pallet by Quaternius, CC0 · appearance proxies · <a href="./assets/ATTRIBUTION.md">all credits</a></span>
+          <span id="deco-key" class="flex w-fit items-center gap-1 rounded bg-zinc-900/70 px-2 py-1 text-[10px] text-zinc-300"><i class="size-2.5 shrink-0 rounded-sm bg-[#c8a97e]"></i>Pallets in lanes: decoration, not cargo records</span>
+          <span id="occ-note" hidden class="w-fit rounded bg-violet-950/85 px-2 py-1 font-mono text-[10px] text-violet-200">DFW observed view: no observation exists, so occupancy is unknown, not free and not full</span>
+        </div>
+        <div data-collapsible="controls" data-compact class="flex shrink-0 flex-col items-end gap-1.5 [&_button]:pointer-events-auto">
+          <button type="button" class="btn bg-white/90 dark:bg-zinc-900/90" data-collapse="controls" aria-controls="controls-body">Scene controls <span aria-hidden="true" class="inline-block transition-transform motion-reduce:transition-none [[aria-expanded=false]_&]:-rotate-90">▾</span></button>
+          <div data-body id="controls-body" class="flex flex-col items-end gap-1.5">
+          <button id="roof" class="btn bg-white/90 dark:bg-zinc-900/90">Roof: on</button>
+          <button id="occ" class="btn bg-white/90 dark:bg-zinc-900/90">Occupancy: run state</button>
+          <button id="mesh" class="btn bg-white/90 dark:bg-zinc-900/90">Meshes: loading models</button>
+          <button id="focus" class="btn bg-white/90 dark:bg-zinc-900/90">Focus selection</button>
+          <button id="reset" class="btn bg-white/90 dark:bg-zinc-900/90">Reset camera</button>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-end gap-2">
+        <div data-collapsible="legend" class="pointer-events-auto flex min-w-0 flex-[0_1_28rem] flex-col items-start gap-1 rounded-md bg-white/90 px-2.5 py-1.5 text-[11px] data-[state=closed]:basis-auto dark:bg-zinc-900/90">
+          <button type="button" class="font-medium whitespace-nowrap hover:underline focus-visible:outline-2 focus-visible:outline-primary-500" data-collapse="legend" aria-controls="legend-body">Legend <span aria-hidden="true" class="inline-block transition-transform motion-reduce:transition-none [[aria-expanded=false]_&]:-rotate-90">▾</span></button>
+          <div data-body id="legend-body" class="flex flex-wrap gap-x-3 gap-y-1">
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm bg-emerald-500"></i>serving</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm bg-amber-500"></i>waiting / blocked</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm bg-red-500"></i>closed / failed (hypothetical)</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm bg-cyan-500"></i>reserved</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm border-2 border-primary-500"></i>selected</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm bg-zinc-500"></i>free</span>
+          <span class="flex items-center gap-1"><i class="size-2.5 rounded-sm border border-dashed border-violet-400 bg-violet-400/60"></i>unknown (not observed)</span>
+          </div>
+        </div>
+        <div data-collapsible="selection" class="ml-auto flex max-w-full flex-col items-end gap-1 [&>*]:pointer-events-auto">
+          <button type="button" class="btn h-7 bg-white/90 dark:bg-zinc-900/90" data-collapse="selection" aria-controls="sel">Selection <span aria-hidden="true" class="inline-block transition-transform motion-reduce:transition-none [[aria-expanded=false]_&]:-rotate-90">▾</span></button>
+          <div data-rail id="sel-sum" class="w-72 max-w-full rounded-md border border-primary-500/50 bg-white/95 px-2.5 py-1 text-xs dark:bg-zinc-900/95"></div>
+          <div data-body id="sel" class="w-72 max-w-full space-y-0.5 rounded-md border border-primary-500/50 bg-white/95 px-2.5 py-1.5 text-xs dark:bg-zinc-900/95"></div>
+          <span id="sel-live" aria-live="polite" class="sr-only"></span>
+        </div>
+      </div>
+      </div>
+      <div id="tip" class="pointer-events-none absolute hidden max-w-64 rounded-md border border-zinc-700 bg-zinc-900/95 px-2.5 py-1.5 text-[11px] text-zinc-100"></div>
+    </section>
+
+    <!-- Right: inspector -->
+    <aside data-collapsible="right" data-layout="right" class="panel flex min-h-0 flex-col overflow-hidden">
+      <div data-body id="right-body" class="flex min-h-0 flex-1 flex-col">
+      <div class="flex items-center border-b border-zinc-200 dark:border-zinc-800">
+      <div role="tablist" class="flex flex-1 text-xs">
+        <button type="button" role="tab" class="tab" data-tab="agent">Agent</button>
+        <button type="button" role="tab" class="tab" data-tab="commitment">Commitment</button>
+        <button type="button" role="tab" class="tab" data-tab="evidence">Evidence</button>
+        <button type="button" role="tab" class="tab" data-tab="entities">Entities</button>
+      </div>
+      <button type="button" class="fold mr-1" data-collapse="right" aria-controls="right-body" aria-label="Collapse inspector panel">»</button>
+      </div>
+
+      <!-- Agent -->
+      <div data-panel="agent" role="tabpanel" class="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
+        <section>
+          <div class="flex items-center justify-between">
+            <div><div class="font-semibold">Driver · DRV-047</div><div class="muted text-xs">Visit V-047 · trailer <button type="button" class="link" data-select="T-2291">T-2291</button> · inbound, 22 pallets <span class="ill">illus→user</span></div></div>
+            <span class="chip bg-primary-500/15 text-primary-600 dark:text-primary-300">LLM decided</span>
+          </div>
+          <div class="muted mt-1 text-[11px]">Decision owner: LLM agent · fallback owner: FCFS rules after 2 failed calls (not triggered)</div>
+          <div class="mt-1.5 flex flex-wrap gap-1 text-[10px]">
+            <span class="src">report ETA</span><span class="src">request appointment</span><span class="src">accept / decline offer</span>
+          </div>
+        </section>
+        <section>
+          <div class="lbl mb-1 flex items-center justify-between">Observations <span class="ill">illus→sim</span></div>
+          <ul class="space-y-1 text-xs">
+            <li><span class="num muted">14:00:00</span> Door D-108 closed, service paused <span class="hyp">H-1</span></li>
+            <li><span class="num muted">14:00:00</span> Own trailer at D-108, 9 of 22 pallets unloaded</li>
+            <li><span class="num muted">14:02:10</span> Departure target 15:30 <span class="ill">illus→user</span></li>
+          </ul>
+        </section>
+        <section>
+          <div class="lbl mb-1">Inbox</div>
+          <div class="space-y-1.5">
+            <div class="rounded-md border border-primary-500/50 p-2 text-xs">
+              <div class="flex justify-between"><span class="font-medium">OFFER from DOCK-C</span><span class="num muted">M-311 · 14:02:40</span></div>
+              <div>Relocate to D-112, window 14:20–15:05</div>
+              <div class="num muted text-[10px]">expires 14:12 · state v3812</div>
+              <div class="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">→ accepted 14:04:40 (M-312)</div>
+            </div>
+            <div class="rounded-md border border-zinc-200 p-2 text-xs dark:border-zinc-800">
+              <div class="flex justify-between"><span class="font-medium">OFFER from DOCK-D</span><span class="num muted">M-308 · 14:01:50</span></div>
+              <div>D-140, window 15:40–16:30</div>
+              <div class="muted text-[11px]">→ declined: misses departure target</div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <div class="lbl mb-1">Obligations</div>
+          <button type="button" data-tab="commitment" class="block w-full rounded-md bg-zinc-100 p-2 text-left text-xs dark:bg-zinc-800/60">
+            <div class="flex justify-between"><span class="font-medium">C-88 · committed</span><span class="num text-zinc-600 dark:text-zinc-400">v3815</span></div>
+            <div class="text-zinc-700 dark:text-zinc-300">DRV-047, DOCK-C, YARD-1, CREW-3</div>
+            <div class="num text-[11px] text-zinc-600 dark:text-zinc-400">D-112 14:20–15:05 · YT-2 · crew CR-3</div>
+          </button>
+        </section>
+        <section>
+          <div class="lbl mb-1">Executed actions</div>
+          <ul class="space-y-1 text-xs">
+            <li><span class="chip bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">OK</span> accept_offer M-311 <span class="num muted">A-899</span></li>
+            <li><span class="chip bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">OK</span> decline_offer M-308 <span class="num muted">A-897</span></li>
+          </ul>
+        </section>
+        <section>
+          <div class="lbl mb-1">Rejected requests</div>
+          <p class="muted text-xs">None for this agent. Invalid proposals are listed apart from executed actions.</p>
+        </section>
+        <section>
+          <div class="lbl mb-1">Escalations</div>
+          <p class="muted text-xs">None for this agent.</p>
+        </section>
+      </div>
+
+      <!-- Commitment -->
+      <div data-panel="commitment" role="tabpanel" hidden class="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
+        <section>
+          <div class="flex items-center justify-between"><span class="font-semibold">Commitment C-88</span><span class="ill">illus→sim</span></div>
+          <div class="muted text-xs">Committed atomically · engine v3815 · 14:05:02</div>
+        </section>
+        <dl class="kv">
+          <dt class="muted">Task</dt><dd>Relocate <button type="button" class="link" data-select="T-2291">T-2291</button> D-108 → <button type="button" class="link" data-select="D-112">D-112</button>, resume unload (13 of 22 pallets left)</dd>
+          <dt class="muted">Expiry</dt><dd>Offer M-311 expires 14:12 · accepted 14:04:40</dd>
+          <dt class="muted">Outcome</dt><dd>In progress · A-902 move started 14:06:10 · arrival not yet occurred</dd>
+        </dl>
+        <section>
+          <div class="lbl mb-1">Participants</div>
+          <table class="w-full text-xs"><tbody class="[&_td]:py-0.5">
+            <tr><td class="font-mono">DRV-047</td><td class="muted">driver</td><td>accepted M-312</td></tr>
+            <tr><td class="font-mono">DOCK-C</td><td class="muted">dock lead</td><td>offered M-311</td></tr>
+            <tr><td class="font-mono">YARD-1</td><td class="muted">yard ctrl</td><td>accepted M-313</td></tr>
+            <tr><td class="font-mono">CREW-3</td><td class="muted">crew lead</td><td>accepted M-314</td></tr>
+          </tbody></table>
+        </section>
+        <section>
+          <div class="lbl mb-1">Requested resources and reservations</div>
+          <table class="w-full text-xs"><tbody class="[&_td]:py-0.5">
+            <tr><td><button type="button" class="link" data-select="D-112">D-112</button></td><td class="num">14:20–15:05</td><td>reserved</td></tr>
+            <tr><td><button type="button" class="link" data-select="YT-2">YT-2</button></td><td class="num">14:06–14:20</td><td>in use (A-902)</td></tr>
+            <tr><td class="font-mono">CR-3</td><td class="num">14:20–15:05</td><td>reserved</td></tr>
+          </tbody></table>
+        </section>
+        <section>
+          <div class="lbl mb-1">Rejections on the way here</div>
+          <p class="text-xs"><span class="chip bg-red-500/15 text-red-700 dark:text-red-300">REJECTED</span> A-894 · YARD-1 requested D-109 at 14:01:30 · STALE_VERSION (sent v3809, current v3811: D-109 taken by C-86)</p>
+        </section>
+      </div>
+
+      <!-- Evidence -->
+      <div data-panel="evidence" role="tabpanel" hidden class="flex min-h-0 flex-col gap-3 overflow-y-auto p-3 text-xs">
+        <section class="space-y-1">
+          <div class="flex items-center justify-between"><span class="font-semibold">Scenario truck visits/day ≈117</span><span class="drv">derived conversion</span></div>
+          <dl class="kv">
+            <dt class="muted">Scope</dt><dd>Scenario workload input. Other buildings, not a DFW observation. DFW daily truck visits stay <span class="unk">unknown</span></dd>
+            <dt class="muted">Source</dt><dd>ITE/NAIOP, "High-Cube Warehouse Vehicle Trip Generation Analysis", prepared for SCAQMD and NAIOP</dd>
+            <dt class="muted">URL</dt><dd class="break-all font-mono text-[10px]">http://newpromisefarms.com/files/2018/07/HighCube-Warehouse-Oct-2016-Study-ITE.pdf</dd>
+            <dt class="muted">Dates</dt><dd>Published Oct 2016 · retrieved 2026-10-11</dd>
+            <dt class="muted">Table</dt><dd>Table 5, weighted average daily trips per 1,000 GSF, 5+ axle trucks</dd>
+            <dt class="muted">Original</dt><dd class="num">0.233 trip ends / 1,000 GSF · Transload &amp; Short-Term Storage (91 sites)</dd>
+            <dt class="muted">Formula</dt><dd class="num">0.233 × 1,000.584 (S1 GSF ÷ 1,000) = 233.1 trip ends ÷ 2 = 116.6 visits</dd>
+            <dt class="muted">Qualifier</dt><dd>approximately; tractor-trailer visits per day</dd>
+            <dt class="muted">Cross-check</dt><dd class="num">Fulfillment Center (1 site, counted in December holiday season) 0.242 → ≈121</dd>
+          </dl>
+        </section>
+        <section class="space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-800">
+          <div class="flex items-center justify-between"><span class="font-semibold">Dock-high doors 182</span><span class="src">S1 published spec</span></div>
+          <dl class="kv">
+            <dt class="muted">Scope</dt><dd>DFW Commerce Center Building I only</dd>
+            <dt class="muted">Source</dt><dd class="break-all font-mono text-[10px]">https://www.dfwcommercecenter.com/features</dd>
+            <dt class="muted">Dates</dt><dd>Publication date not provided · retrieved 2026-10-11</dd>
+            <dt class="muted">Qualifier</dt><dd>physical capacity, not trucks present</dd>
+          </dl>
+        </section>
+        <section class="space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-800">
+          <div class="flex items-center justify-between"><span class="font-semibold">D-108 closed 14:00–16:00</span><span class="hyp">hypothetical H-1</span></div>
+          <dl class="kv">
+            <dt class="muted">Scope</dt><dd>Operator-injected disruption in this branch, not an observed event</dd>
+          </dl>
+        </section>
+      </div>
+
+      <!-- Entities: same records as the scene -->
+      <div data-panel="entities" role="tabpanel" hidden class="flex min-h-0 flex-1 flex-col gap-2 p-3">
+        <div class="flex items-center justify-between">
+          <div class="flex gap-1">
+            <button type="button" class="seg" data-filter="doors">Doors</button>
+            <button type="button" class="seg" data-filter="stalls">Stalls</button>
+            <button type="button" class="seg" data-filter="trailers">Trailers</button>
+            <button type="button" class="seg" data-filter="equipment">Equipment</button>
+          </div>
+          <span id="ent-count" class="muted text-[11px]"></span>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+          <table class="w-full text-xs">
+            <thead class="sticky top-0 bg-zinc-100 text-left dark:bg-zinc-800"><tr><th class="px-2 py-1 font-medium">ID</th><th class="px-2 py-1 font-medium">Status <span class="ill">illus→sim</span></th></tr></thead>
+            <tbody id="ent-rows" class="[&_td]:px-2 [&_td]:py-0.5"></tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+      <button type="button" data-rail class="rail" data-collapse="right" aria-controls="right-body" aria-label="Expand inspector panel"><span>«</span><span class="lbl [writing-mode:vertical-rl]">Inspector</span></button>
+    </aside>
+  </main>
+
+  <!-- Bottom: causal timeline (all events at or before logical time 14:07:30) -->
+  <footer data-collapsible="timeline" class="panel flex flex-col gap-1.5 px-3 py-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="lbl flex items-center gap-1"><button type="button" class="fold" data-collapse="timeline" aria-controls="timeline-body" aria-label="Toggle causal timeline"><span aria-hidden="true" class="inline-block transition-transform motion-reduce:transition-none [[aria-expanded=false]_&]:-rotate-90">▾</span></button>Causal timeline · H-1 → C-88 <span class="ill">illus→sim</span></span>
+      <span class="muted text-[11px]">inference: 2 calls · 1.8 s <span class="ill">illus→meas</span> · reported separately from logical time</span>
+    </div>
+    <div data-body id="timeline-body" class="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div class="tl border-amber-500/60 bg-amber-500/10"><span class="num muted">14:00:00</span><span class="hyp w-fit">DISRUPTION H-1</span><span>D-108 closed 14:00–16:00</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-zinc-300 dark:border-zinc-700"><span class="num muted">14:00:00 · E-5121 · engine</span><span>Service paused at D-108</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-red-500/50"><span class="num muted">14:01:30 · A-894 · YARD-1</span><span>Request D-109 · STALE_VERSION</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-zinc-300 dark:border-zinc-700"><span class="num muted">14:02:40 · M-311 · DOCK-C → DRV-047</span><span>Offer D-112 14:20–15:05</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-zinc-300 dark:border-zinc-700"><span class="num muted">14:04:40 · M-312 · DRV-047</span><span>Accept (LLM)</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-primary-500 bg-primary-500/10"><span class="num muted">14:05:02 · C-88 · engine v3815</span><span>Committed atomically</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-zinc-300 dark:border-zinc-700"><span class="num muted">14:06:10 · A-902 · YT-2</span><span>Move T-2291 D-108 → D-112 started</span></div><span class="text-zinc-400">→</span>
+      <div class="tl border-dashed border-zinc-400 dark:border-zinc-600"><span class="num muted">scheduled · not yet occurred</span><span>T-2291 arrival at D-112 · window 14:20</span></div>
+    </div>
+  </footer>
+</div>
+<script type="importmap">
+{ "imports": {
+  "react": "https://esm.sh/react@19.1.0",
+  "react/jsx-runtime": "https://esm.sh/react@19.1.0/jsx-runtime",
+  "react-dom/client": "https://esm.sh/react-dom@19.1.0/client?external=react",
+  "three": "https://esm.sh/three@0.170.0",
+  "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.1.2?external=react,react-dom,three",
+  "three/addons/": "https://esm.sh/three@0.170.0/examples/jsm/",
+  "htm": "https://esm.sh/htm@3.1.1"
+} }
+</script>
+<script type="module" src="./ui.js"></script>
+<script type="module" src="./panels.js"></script>
+<script type="module">
+  // Boot the 3D scene; any WebGL or module failure leaves a truthful message.
+  import { sceneFailed } from "./ui.js";
+  const hasWebGL = () => {
+    try {
+      const c = document.createElement("canvas");
+      return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    } catch {
+      return false;
+    }
+  };
+  if (!hasWebGL()) sceneFailed("WebGL is unavailable in this browser");
+  else
+    import("./scene-r3f.js").catch((err) => {
+      console.error("3D scene modules failed to load", err);
+      sceneFailed(`its modules failed to load or start (${err.message})`);
+    });
+</script>
+</body>
+</html>

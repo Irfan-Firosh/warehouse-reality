@@ -1,0 +1,16 @@
+{
+  "listing": "https://poly.pizza/m/cUAsYHDqfD",
+  "retrieved": "2026-10-11",
+  "source": "window.__SERVER_APP_STATE__.initialData.model on the listing page",
+  "Title": "Pallet",
+  "Creator": "Quaternius",
+  "Licence": "CC0 1.0",
+  "PublicID": "cUAsYHDqfD",
+  "ResourceID": "e2109848-da3e-41c0-a96f-4471e91f78d9",
+  "UploadDate": "2022-12-16T01:38:56.737Z",
+  "Tris": 176,
+  "glb_url": "https://static.poly.pizza/e2109848-da3e-41c0-a96f-4471e91f78d9.glb",
+  "bundled_file": "polypizza/pallet-quaternius.glb",
+  "bundled_sha1": "ac2afe8e58f12bdd4ab9cff3cc2514963ca5206f",
+  "bundled_bytes": 10264
+}

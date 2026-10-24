@@ -1,0 +1,16 @@
+{
+  "listing": "https://poly.pizza/m/DTQBuenKJY",
+  "retrieved": "2026-10-11",
+  "source": "window.__SERVER_APP_STATE__.initialData.model on the listing page",
+  "Title": "Forklift",
+  "Creator": "KolosStudios",
+  "Licence": "CC-BY 3.0",
+  "PublicID": "DTQBuenKJY",
+  "ResourceID": "2923ce44-178b-49f3-9172-c3515b8b5ec8",
+  "UploadDate": "2022-02-06T11:24:43.922Z",
+  "Tris": 0,
+  "glb_url": "https://static.poly.pizza/2923ce44-178b-49f3-9172-c3515b8b5ec8.glb",
+  "bundled_file": "polypizza/forklift-kolos.glb",
+  "bundled_sha1": "bb09da754bbe2781f1d862b47ec5d11367ccdc49",
+  "bundled_bytes": 137564
+}
