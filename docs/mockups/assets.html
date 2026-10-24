@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- Asset gallery for the mockup. Serve over HTTP: python3 docs/mockups/serve.py → http://127.0.0.1:8765/assets.html -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup Asset Gallery</title>
+<link rel="icon" href="data:," />
+<style>
+  :root { color-scheme: light dark; --bg: #fafafa; --fg: #09090b; --card: #fff; --line: #e4e4e7; --muted: #52525b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #09090b; --fg: #fafafa; --card: #18181b; --line: #27272a; --muted: #a1a1aa; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .view { height: 260px; }
+  .meta { padding: 8px 10px; }
+  .meta small { color: var(--muted); font-family: ui-monospace, monospace; }
+  h1 { font-size: 16px; margin: 12px 12px 0; }
+  a { color: inherit; }
+  .note { margin: 4px 12px 0; color: var(--muted); }
+  .failed { display: grid; height: 100%; place-items: center; color: var(--muted); }
+</style>
+<script type="importmap">
+{ "imports": {
+  "react": "https://esm.sh/react@19.1.0",
+  "react/jsx-runtime": "https://esm.sh/react@19.1.0/jsx-runtime",
+  "react-dom/client": "https://esm.sh/react-dom@19.1.0/client?external=react",
+  "three": "https://esm.sh/three@0.170.0",
+  "three/addons/": "https://esm.sh/three@0.170.0/examples/jsm/",
+  "@react-three/fiber": "https://esm.sh/@react-three/fiber@9.1.2?external=react,react-dom,three",
+  "htm": "https://esm.sh/htm@3.1.1"
+} }
+</script>
+</head>
+<body>
+<h1>Mockup asset gallery: free models (React Three Fiber)</h1>
+<p class="note">Appearance-only proxies. Full credits, license texts and listing snapshots: <a href="./assets/ATTRIBUTION.md">ATTRIBUTION.md</a> · <a href="./assets/licenses/">licenses/</a></p>
+<main id="root"><p class="note">Loading the gallery needs WebGL and the CDN modules (esm.sh).</p></main>
+<script type="module">
+  import { Suspense, use, useLayoutEffect } from "react";
+  import { createRoot } from "react-dom/client";
+  import * as THREE from "three";
+  import { Canvas, useThree } from "@react-three/fiber";
+  import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+  import { ASSETS, Boundary, html, useOrbit } from "./r3f-deps.js";
+
+  const VIEW_DIR = new THREE.Vector3(3, 2, 4).normalize();
+  const FIT_MARGIN = 1.2;
+
+  // Fit the camera to the model's bounding sphere
+  const fitCamera = (camera, controls, object) => {
+    const sphere = new THREE.Box3().setFromObject(object).getBoundingSphere(new THREE.Sphere());
+    const dist = (sphere.radius * FIT_MARGIN) / Math.sin((camera.fov * Math.PI) / 360);
+    camera.position.copy(sphere.center).addScaledVector(VIEW_DIR, dist);
+    camera.near = dist / 100;
+    camera.far = dist * 100;
+    camera.updateProjectionMatrix();
+    controls.target.copy(sphere.center);
+    controls.update();
+  };
+
+  // One load promise per file; `use` throws a rejection to the card's Boundary
+  const loader = new GLTFLoader();
+  const loads = new Map();
+  const load = (url) => {
+    if (!loads.has(url)) loads.set(url, loader.loadAsync(url));
+    return loads.get(url);
+  };
+
+  const Model = ({ url }) => {
+    const { scene } = use(load(url));
+    const camera = useThree((s) => s.camera);
+    const controls = useOrbit({});
+    useLayoutEffect(() => fitCamera(camera, controls, scene), [camera, controls, scene]);
+    return html`<primitive object=${scene} />`;
+  };
+
+  const failed = html`<div class="failed">Model failed to load. See the console.</div>`;
+  const Card = ({ asset }) => html`
+    <div class="card">
+      <div class="view">
+        <${Boundary} fallback=${failed} onFail=${(err) => console.error(`${asset.url} failed`, err)}>
+          <${Canvas} camera=${{ position: [3, 2, 4], fov: 40 }}>
+            <hemisphereLight args=${[0xffffff, 0x666670, 1.8]} />
+            <directionalLight position=${[3, 5, 2]} intensity=${1.6} />
+            <${Suspense} fallback=${null}><${Model} url=${asset.url} /></${Suspense}>
+          </${Canvas}>
+        </${Boundary}>
+      </div>
+      <div class="meta">
+        <b>"${asset.title}"</b> by ${asset.author}<br />
+        <small><a href=${asset.licenseUrl}>${asset.license}</a> · <a href=${asset.source}>${asset.source}</a></small><br />
+        <small>${asset.use}</small>
+      </div>
+    </div>`;
+
+  createRoot(document.getElementById("root")).render(
+    html`${Object.entries(ASSETS).map(([key, asset]) => html`<${Card} key=${key} asset=${asset} />`)}`,
+  );
+</script>
+</body>
+</html>
