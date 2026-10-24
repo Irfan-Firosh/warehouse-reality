@@ -1,0 +1,16 @@
+{
+  "listing": "https://poly.pizza/m/dQXRtm5GbO",
+  "retrieved": "2026-10-11",
+  "source": "window.__SERVER_APP_STATE__.initialData.model on the listing page",
+  "Title": "Shipping Container",
+  "Creator": "Quaternius",
+  "Licence": "CC0 1.0",
+  "PublicID": "dQXRtm5GbO",
+  "ResourceID": "e56c8efb-940f-4150-9bf8-d468c0165116",
+  "UploadDate": "2022-12-16T01:38:57.177Z",
+  "Tris": 1336,
+  "glb_url": "https://static.poly.pizza/e56c8efb-940f-4150-9bf8-d468c0165116.glb",
+  "bundled_file": "polypizza/container-quaternius.glb",
+  "bundled_sha1": "ebfe2d48abcdbf4ee0445de0a407bca3f20eec7a",
+  "bundled_bytes": 57020
+}
