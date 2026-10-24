@@ -1,0 +1,16 @@
+{
+  "listing": "https://poly.pizza/m/snDq7v3GRO",
+  "retrieved": "2026-10-11",
+  "source": "window.__SERVER_APP_STATE__.initialData.model on the listing page",
+  "Title": "Pallet Truck",
+  "Creator": "KolosStudios",
+  "Licence": "CC-BY 3.0",
+  "PublicID": "snDq7v3GRO",
+  "ResourceID": "bd73888a-81bf-4cf5-b2a6-f46eee6f45c8",
+  "UploadDate": "2022-02-06T11:24:43.634Z",
+  "Tris": 0,
+  "glb_url": "https://static.poly.pizza/bd73888a-81bf-4cf5-b2a6-f46eee6f45c8.glb",
+  "bundled_file": "polypizza/pallettruck-kolos.glb",
+  "bundled_sha1": "637d0386a9897f6fa0b7779c70ca2a8183c46f8f",
+  "bundled_bytes": 43652
+}
