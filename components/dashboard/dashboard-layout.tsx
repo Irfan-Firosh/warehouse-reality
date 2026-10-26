@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { SceneLoader } from "@/components/scene/scene-loader";
-import { calculateDashboardCounts, LOGICAL_TIME } from "@/lib/dashboard/data";
+import { useSimulation } from "@/lib/dashboard/use-simulation";
 import type { TabKey } from "@/types/dashboard";
 import { CausalTimeline } from "./causal-timeline";
 import { DisruptionModal } from "./disruption-modal";
@@ -16,24 +16,41 @@ export const DashboardLayout = () => {
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("agent");
-  const [isPaused, setIsPaused] = useState(true);
-  const [speed, setSpeed] = useState<1 | 4 | 16>(4);
   const [disruptionModalOpen, setDisruptionModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const counts = calculateDashboardCounts();
+  // Authoritative simulation & agent integration
+  const {
+    logicalTime,
+    stateVersion,
+    isPaused,
+    speed,
+    isDeliberating,
+    activeAgentId,
+    agents,
+    commitments,
+    timelineEvents,
+    counts,
+    lastDeliberation,
+    togglePause,
+    setSpeed,
+    setActiveAgentId,
+    nextStep,
+    injectDisruption,
+    triggerAgentDeliberation,
+    createCheckpoint,
+  } = useSimulation();
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
-    }, 3000);
+    }, 3500);
   }, []);
 
   const handleSelectEntity = useCallback((id: string | null) => {
     setSelectedId(id);
     if (id) {
-      // Ensure right inspector is open and switched to entities or agent
       setRightOpen(true);
     }
   }, []);
@@ -46,6 +63,26 @@ export const DashboardLayout = () => {
   const handleToggleTheme = useCallback(() => {
     document.documentElement.classList.toggle("dark");
   }, []);
+
+  const handleInjectDisruption = useCallback(
+    async (disruptionId: string) => {
+      showToast(
+        `Injected ${disruptionId} disruption into authoritative engine`,
+      );
+      await injectDisruption(disruptionId);
+
+      if (disruptionId === "H-1") {
+        handleSelectEntity("D-108");
+        setActiveAgentId("DOCK-C");
+        setActiveTab("agent");
+      } else if (disruptionId === "H-2") {
+        handleSelectEntity("F-07");
+        setActiveAgentId("SUP-1");
+        setActiveTab("agent");
+      }
+    },
+    [handleSelectEntity, injectDisruption, setActiveAgentId, showToast],
+  );
 
   return (
     <div className="flex h-dvh w-full flex-col gap-2 p-2 bg-zinc-100 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50 font-sans antialiased overflow-hidden select-none">
@@ -63,21 +100,14 @@ export const DashboardLayout = () => {
       <DisruptionModal
         isOpen={disruptionModalOpen}
         onClose={() => setDisruptionModalOpen(false)}
-        onInject={(disruptionId) => {
-          showToast(`Injected ${disruptionId} disruption into active branch`);
-          if (disruptionId === "H-1") {
-            handleSelectEntity("D-108");
-          } else if (disruptionId === "H-2") {
-            handleSelectEntity("F-07");
-          }
-        }}
+        onInject={handleInjectDisruption}
       />
 
       {/* Disclaimer Banner and Legend */}
       <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1 text-[11px] text-amber-900 dark:text-amber-300">
         <span>
-          Design preview: run state, IDs, times and counts are illustrative
-          placeholders, not facility data or run results.
+          Live Simulation State: engine v{stateVersion} · DFW S1 physical
+          invariants enforced.
         </span>
         <span className="text-zinc-400">·</span>
         <span className="flex items-center gap-1">
@@ -104,20 +134,25 @@ export const DashboardLayout = () => {
 
       {/* Top Bar */}
       <TopBar
-        logicalTime={LOGICAL_TIME}
+        logicalTime={logicalTime}
         isPaused={isPaused}
         speed={speed}
+        isDeliberating={isDeliberating}
         onTogglePause={() => {
-          setIsPaused((p) => !p);
+          togglePause();
           showToast(isPaused ? "Simulation resumed" : "Simulation paused");
         }}
-        onNextEvent={() => showToast("Advanced to next event (14:08:00)")}
+        onNextEvent={async () => {
+          showToast("Advancing engine clock & stepping agent deliberation");
+          await nextStep();
+        }}
         onChangeSpeed={setSpeed}
         onOpenEvidence={handleOpenEvidence}
         onOpenDisruptionModal={() => setDisruptionModalOpen(true)}
-        onCheckpoint={() =>
-          showToast("Saved checkpoint CP-1407 (state version v3815)")
-        }
+        onCheckpoint={() => {
+          const msg = createCheckpoint();
+          showToast(msg);
+        }}
         onBranch={() => showToast("Created branch: 'FCFS Baseline Comparison'")}
         onCompare={() =>
           showToast("Comparing: Distributed Agents vs. FCFS Baseline")
@@ -152,11 +187,18 @@ export const DashboardLayout = () => {
           onToggle={() => setRightOpen((o) => !o)}
           onSelectTab={setActiveTab}
           onSelectEntity={handleSelectEntity}
+          agents={agents}
+          activeAgentId={activeAgentId}
+          onSelectAgent={setActiveAgentId}
+          onTriggerDeliberation={triggerAgentDeliberation}
+          isDeliberating={isDeliberating}
+          lastDeliberation={lastDeliberation}
+          commitments={commitments}
         />
       </main>
 
       {/* Bottom: Causal Event Timeline */}
-      <CausalTimeline />
+      <CausalTimeline events={timelineEvents} />
     </div>
   );
 };

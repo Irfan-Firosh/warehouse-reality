@@ -1,5 +1,7 @@
 "use client";
 
+import type { AgentState, DeliberationResult } from "@/lib/agents/types";
+import type { CommitmentEntity } from "@/lib/engine/types";
 import type { TabKey } from "@/types/dashboard";
 import { AgentTab } from "./tabs/agent-tab";
 import { CommitmentTab } from "./tabs/commitment-tab";
@@ -13,6 +15,13 @@ interface InspectorPanelProps {
   onToggle: () => void;
   onSelectTab: (tab: TabKey) => void;
   onSelectEntity: (id: string) => void;
+  agents?: AgentState[];
+  activeAgentId?: string;
+  onSelectAgent?: (id: string) => void;
+  onTriggerDeliberation?: (id?: string) => Promise<unknown>;
+  isDeliberating?: boolean;
+  lastDeliberation?: DeliberationResult | null;
+  commitments?: CommitmentEntity[];
 }
 
 export const InspectorPanel = ({
@@ -22,6 +31,12 @@ export const InspectorPanel = ({
   onToggle,
   onSelectTab,
   onSelectEntity,
+  agents,
+  activeAgentId,
+  onSelectAgent,
+  onTriggerDeliberation,
+  isDeliberating,
+  lastDeliberation,
 }: InspectorPanelProps) => {
   if (!isOpen) {
     return (
@@ -86,6 +101,12 @@ export const InspectorPanel = ({
           <AgentTab
             onSelectEntity={onSelectEntity}
             onSwitchTab={() => onSelectTab("commitment")}
+            agents={agents}
+            activeAgentId={activeAgentId}
+            onSelectAgent={onSelectAgent}
+            onTriggerDeliberation={onTriggerDeliberation}
+            isDeliberating={isDeliberating}
+            lastDeliberation={lastDeliberation}
           />
         )}
         {activeTab === "commitment" && (

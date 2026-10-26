@@ -6,6 +6,7 @@ interface TopBarProps {
   logicalTime: string;
   isPaused: boolean;
   speed: 1 | 4 | 16;
+  isDeliberating?: boolean;
   onTogglePause: () => void;
   onNextEvent: () => void;
   onChangeSpeed: (speed: 1 | 4 | 16) => void;
@@ -21,6 +22,7 @@ export const TopBar = ({
   logicalTime,
   isPaused,
   speed,
+  isDeliberating = false,
   onTogglePause,
   onNextEvent,
   onChangeSpeed,
@@ -104,8 +106,14 @@ export const TopBar = ({
 
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <span className="mr-1 hidden xl:inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-          <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
-          Time paused · 2 agents deciding
+          <span
+            className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-ping" : "animate-pulse"}`}
+          />
+          {isDeliberating
+            ? "NVIDIA model deliberating..."
+            : isPaused
+              ? "Time paused · agents standby"
+              : "Simulation running"}
         </span>
 
         <button
