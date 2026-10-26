@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TIMELINE_EVENTS } from "@/lib/dashboard/data";
-import type { TimelineEventType } from "@/types/dashboard";
+import type { TimelineEvent, TimelineEventType } from "@/types/dashboard";
 import { ProvenanceBadge } from "./provenance-badge";
 
 const CARD_STYLES: Record<TimelineEventType, string> = {
@@ -24,7 +24,13 @@ const CARD_STYLES: Record<TimelineEventType, string> = {
     "border-dashed border-zinc-400 dark:border-zinc-700 bg-zinc-50/40 dark:bg-zinc-950/20 text-zinc-500",
 };
 
-export const CausalTimeline = () => {
+interface CausalTimelineProps {
+  events?: readonly TimelineEvent[];
+}
+
+export const CausalTimeline = ({
+  events = TIMELINE_EVENTS,
+}: CausalTimelineProps) => {
   const [isOpen, setIsOpen] = useState(true);
 
   return (
@@ -40,13 +46,14 @@ export const CausalTimeline = () => {
           <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
         </button>
         <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
-          Inference: 2 calls · 1.8 s · reported separately from logical time
+          Inference: reported separately from logical time · authoritative
+          ordering
         </span>
       </div>
 
       {isOpen && (
         <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-1 text-xs">
-          {TIMELINE_EVENTS.map((evt, idx) => (
+          {events.map((evt, idx) => (
             <div key={evt.id} className="flex items-center gap-1.5 shrink-0">
               <div
                 className={`flex flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-[11px] leading-tight min-w-36 ${CARD_STYLES[evt.type]}`}
@@ -71,7 +78,7 @@ export const CausalTimeline = () => {
                   {evt.title}
                 </div>
               </div>
-              {idx < TIMELINE_EVENTS.length - 1 && (
+              {idx < events.length - 1 && (
                 <span className="text-zinc-400 select-none text-xs">→</span>
               )}
             </div>

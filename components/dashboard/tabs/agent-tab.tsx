@@ -1,137 +1,205 @@
 "use client";
 
+import type { AgentState, DeliberationResult } from "@/lib/agents/types";
 import { ProvenanceBadge } from "../provenance-badge";
 
 interface AgentTabProps {
   onSelectEntity: (id: string) => void;
   onSwitchTab: (tab: "commitment") => void;
+  agents?: AgentState[];
+  activeAgentId?: string;
+  onSelectAgent?: (id: string) => void;
+  onTriggerDeliberation?: (id?: string) => Promise<unknown>;
+  isDeliberating?: boolean;
+  lastDeliberation?: DeliberationResult | null;
 }
 
-export const AgentTab = ({ onSelectEntity, onSwitchTab }: AgentTabProps) => {
+export const AgentTab = ({
+  onSelectEntity,
+  onSwitchTab,
+  agents = [],
+  activeAgentId = "DRV-047",
+  onSelectAgent,
+  onTriggerDeliberation,
+  isDeliberating = false,
+  lastDeliberation,
+}: AgentTabProps) => {
+  const currentAgent = agents.find((a) => a.id === activeAgentId) ?? agents[0];
+
+  const agentRole = currentAgent?.role ?? "driver";
+  const agentName = currentAgent?.name ?? "Driver DRV-047";
+
   return (
     <div className="space-y-3 p-3 text-xs">
+      {/* Agent Selector */}
+      {agents.length > 0 && onSelectAgent && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+          {agents.map((ag) => (
+            <button
+              key={ag.id}
+              type="button"
+              onClick={() => onSelectAgent(ag.id)}
+              className={`rounded px-2 py-1 font-mono text-[10px] font-medium transition-colors ${
+                ag.id === activeAgentId
+                  ? "bg-blue-600 text-white dark:bg-blue-500"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+              }`}
+            >
+              {ag.id}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Header Profile */}
       <section className="rounded-md border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/30">
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-semibold text-sm">Driver · DRV-047</div>
+            <div className="font-semibold text-sm">
+              {agentName} ({agentRole})
+            </div>
             <div className="text-zinc-500 text-[11px]">
-              Visit V-047 · trailer{" "}
+              Assigned entity:{" "}
               <button
                 type="button"
-                onClick={() => onSelectEntity("T-2291")}
+                onClick={() =>
+                  onSelectEntity(currentAgent?.assignedEntityId ?? "T-2291")
+                }
                 className="font-mono text-blue-600 dark:text-blue-400 underline"
               >
-                T-2291
-              </button>{" "}
-              · inbound, 22 pallets
+                {currentAgent?.assignedEntityId ?? "T-2291"}
+              </button>
             </div>
           </div>
           <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-            LLM decided
+            LLM runtime
           </span>
         </div>
         <div className="text-zinc-500 mt-1 text-[11px]">
-          Decision owner: LLM agent · Fallback: FCFS rules after 2 failed calls
+          Decision owner: Nebius / NVIDIA model · Strict tool contracts
         </div>
-        <div className="mt-2 flex flex-wrap gap-1 text-[10px]">
-          <span className="rounded bg-zinc-200/80 px-1.5 py-0.5 dark:bg-zinc-800 font-mono">
-            report ETA
-          </span>
-          <span className="rounded bg-zinc-200/80 px-1.5 py-0.5 dark:bg-zinc-800 font-mono">
-            request appointment
-          </span>
-          <span className="rounded bg-zinc-200/80 px-1.5 py-0.5 dark:bg-zinc-800 font-mono">
-            accept / decline offer
-          </span>
-        </div>
+
+        {/* Deliberate Action Button */}
+        {onTriggerDeliberation && (
+          <div className="mt-2.5">
+            <button
+              type="button"
+              disabled={isDeliberating}
+              onClick={() => onTriggerDeliberation(activeAgentId)}
+              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {isDeliberating ? (
+                <>
+                  <span className="size-2 animate-spin rounded-full border border-white border-t-transparent" />
+                  <span>Deliberating with NVIDIA model...</span>
+                </>
+              ) : (
+                <span>✦ Run Agent Deliberation</span>
+              )}
+            </button>
+          </div>
+        )}
       </section>
+
+      {/* Recent Model Thought / Deliberation */}
+      {lastDeliberation && (
+        <section className="rounded-md border border-blue-500/40 bg-blue-50/30 p-2.5 dark:border-blue-500/30 dark:bg-blue-950/20">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300 mb-1 flex items-center justify-between">
+            <span>Model Reasoning</span>
+            <span className="font-mono text-[10px] text-zinc-400">
+              {lastDeliberation.agentId}
+            </span>
+          </div>
+          <p className="text-zinc-800 dark:text-zinc-200 text-xs italic leading-relaxed">
+            "{lastDeliberation.thought}"
+          </p>
+          {lastDeliberation.toolCall && (
+            <div className="mt-1.5 pt-1.5 border-t border-blue-200 dark:border-blue-900/50 flex items-center justify-between font-mono text-[11px]">
+              <span className="text-blue-700 dark:text-blue-300 font-semibold">
+                Tool: {lastDeliberation.toolCall.tool}
+              </span>
+              <span className="text-emerald-600 font-medium">Validated ✓</span>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Local Observations */}
       <section>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1 flex items-center justify-between">
-          <span>Local Observations</span>
+          <span>Local Observations & Memory</span>
           <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
         </div>
         <ul className="space-y-1 text-zinc-700 dark:text-zinc-300 text-xs">
-          <li className="flex items-baseline gap-1.5">
-            <span className="font-mono text-zinc-400 text-[11px]">
-              14:00:00
-            </span>
-            <span>
-              Door{" "}
-              <button
-                type="button"
-                onClick={() => onSelectEntity("D-108")}
-                className="font-mono text-amber-600 underline"
-              >
-                D-108
-              </button>{" "}
-              closed, service paused{" "}
-              <ProvenanceBadge kind="hyp">H-1</ProvenanceBadge>
-            </span>
-          </li>
-          <li className="flex items-baseline gap-1.5">
-            <span className="font-mono text-zinc-400 text-[11px]">
-              14:00:00
-            </span>
-            <span>Own trailer at D-108, 9 of 22 pallets unloaded</span>
-          </li>
-          <li className="flex items-baseline gap-1.5">
-            <span className="font-mono text-zinc-400 text-[11px]">
-              14:02:10
-            </span>
-            <span>
-              Departure target 15:30{" "}
-              <ProvenanceBadge kind="ill">illus→user</ProvenanceBadge>
-            </span>
-          </li>
+          {currentAgent && currentAgent.memory.length > 0 ? (
+            currentAgent.memory.slice(-4).map((m) => (
+              <li key={m.id} className="flex items-baseline gap-1.5">
+                <span className="font-mono text-zinc-400 text-[10px]">
+                  {m.type}
+                </span>
+                <span>{m.summary}</span>
+              </li>
+            ))
+          ) : (
+            <>
+              <li className="flex items-baseline gap-1.5">
+                <span className="font-mono text-zinc-400 text-[11px]">
+                  14:00:00
+                </span>
+                <span>
+                  Door{" "}
+                  <button
+                    type="button"
+                    onClick={() => onSelectEntity("D-108")}
+                    className="font-mono text-amber-600 underline"
+                  >
+                    D-108
+                  </button>{" "}
+                  closed, service paused{" "}
+                  <ProvenanceBadge kind="hyp">H-1</ProvenanceBadge>
+                </span>
+              </li>
+              <li className="flex items-baseline gap-1.5">
+                <span className="font-mono text-zinc-400 text-[11px]">
+                  14:00:00
+                </span>
+                <span>Own trailer at D-108, 9 of 22 pallets unloaded</span>
+              </li>
+            </>
+          )}
         </ul>
       </section>
 
       {/* Agent Inbox */}
       <section>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">
-          Agent Inbox (Offers)
+          Agent Inbox (Offers & Messages)
         </div>
         <div className="space-y-1.5">
-          <div className="rounded-md border border-blue-500/50 bg-blue-50/20 p-2 dark:border-blue-500/30 dark:bg-blue-950/20">
-            <div className="flex justify-between items-baseline font-medium">
-              <span>OFFER from DOCK-C</span>
-              <span className="font-mono text-[11px] text-zinc-400">
-                M-311 · 14:02:40
-              </span>
-            </div>
-            <div className="text-zinc-700 dark:text-zinc-300">
-              Relocate to{" "}
-              <button
-                type="button"
-                onClick={() => onSelectEntity("D-112")}
-                className="font-mono text-blue-600 underline"
+          {currentAgent && currentAgent.inbox.length > 0 ? (
+            currentAgent.inbox.map((msg) => (
+              <div
+                key={msg.id}
+                className="rounded-md border border-blue-500/50 bg-blue-50/20 p-2 dark:border-blue-500/30 dark:bg-blue-950/20"
               >
-                D-112
-              </button>
-              , window 14:20–15:05
+                <div className="flex justify-between items-baseline font-medium">
+                  <span>
+                    {msg.purpose.toUpperCase()} from {msg.fromAgentId}
+                  </span>
+                  <span className="font-mono text-[11px] text-zinc-400">
+                    {msg.id}
+                  </span>
+                </div>
+                <div className="text-zinc-700 dark:text-zinc-300 mt-0.5">
+                  {JSON.stringify(msg.payload)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-md border border-zinc-200 p-2 text-zinc-400 italic dark:border-zinc-800">
+              No pending messages in inbox
             </div>
-            <div className="font-mono text-[10px] text-zinc-400">
-              expires 14:12 · state v3812
-            </div>
-            <div className="mt-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-              → accepted 14:04:40 (M-312)
-            </div>
-          </div>
-
-          <div className="rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
-            <div className="flex justify-between items-baseline font-medium text-zinc-600 dark:text-zinc-400">
-              <span>OFFER from DOCK-D</span>
-              <span className="font-mono text-[11px] text-zinc-400">
-                M-308 · 14:01:50
-              </span>
-            </div>
-            <div className="text-zinc-500">D-140, window 15:40–16:30</div>
-            <div className="text-[11px] text-zinc-400 italic">
-              → declined: misses departure target
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -158,29 +226,6 @@ export const AgentTab = ({ onSelectEntity, onSwitchTab }: AgentTabProps) => {
             D-112 14:20–15:05 · YT-2 · crew CR-3
           </div>
         </button>
-      </section>
-
-      {/* Executed Actions */}
-      <section>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">
-          Executed Actions
-        </div>
-        <ul className="space-y-1 text-zinc-700 dark:text-zinc-300">
-          <li className="flex items-center gap-1.5">
-            <span className="rounded bg-emerald-100 px-1 text-[10px] font-mono font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              OK
-            </span>
-            <span>accept_offer M-311</span>
-            <span className="font-mono text-zinc-400 text-[10px]">A-899</span>
-          </li>
-          <li className="flex items-center gap-1.5">
-            <span className="rounded bg-emerald-100 px-1 text-[10px] font-mono font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              OK
-            </span>
-            <span>decline_offer M-308</span>
-            <span className="font-mono text-zinc-400 text-[10px]">A-897</span>
-          </li>
-        </ul>
       </section>
     </div>
   );
