@@ -1,9 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { FacilitySceneProps } from "./facility-scene";
 
 // WebGL needs the browser, so the scene is never prerendered on the server.
-export const SceneLoader = dynamic(
+export const SceneLoader = dynamic<FacilitySceneProps>(
   () => import("./facility-scene").then((m) => m.FacilityScene),
   {
     ssr: false,

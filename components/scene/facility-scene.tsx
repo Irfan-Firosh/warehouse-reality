@@ -34,18 +34,29 @@ const STATE = ILLUSTRATIVE_STATE;
 const ENTITIES = entitiesById(STATE);
 const EXCEPTIONS = exceptionOptions(STATE);
 
-export const FacilityScene = () => {
+export interface FacilitySceneProps {
+  selectedId?: string | null;
+  onSelectEntity?: (id: string | null) => void;
+}
+
+export const FacilityScene = ({
+  selectedId,
+  onSelectEntity,
+}: FacilitySceneProps) => {
   const palette = usePalette();
   const layout = useMemo(
     () => buildLayout(STATE, [CLOSED_DOOR, TARGET_DOOR]),
     [],
   );
   const [hovered, setHovered] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [internalSelected, setInternalSelected] = useState<string | null>(null);
+  const selected = selectedId !== undefined ? selectedId : internalSelected;
+  const setSelected = onSelectEntity ?? setInternalSelected;
   const [roof, setRoof] = useState(true);
   const [modelsOn, setModelsOn] = useState(true);
   const models = useModelKit(modelsOn);
   const { graphics, canvasKey, onCreated } = useGraphicsContext();
+
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 
   const meshes: MeshMode = !modelsOn
@@ -75,7 +86,7 @@ export const FacilityScene = () => {
         if (travel.current.max <= CLICK_SLOP_PX) setSelected(id);
       },
     }),
-    [],
+    [setSelected],
   );
   const onPointerMissed = (e: MouseEvent) => {
     setHovered(null);
@@ -88,7 +99,7 @@ export const FacilityScene = () => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [setSelected]);
 
   const resetCamera = useCallback(() => {
     const c = controls.current;
