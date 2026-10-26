@@ -148,11 +148,11 @@ export const callNebiusModel = async (
   inbox: Array<Record<string, unknown>>,
   version: number,
 ): Promise<NebiusDeliberationResponse> => {
-  const apiKey = process.env.NEBIUS_API_KEY || process.env.NVIDIA_API_KEY;
+  const apiKey = process.env.NEBIUS_API_KEY;
   const baseUrl =
-    process.env.NEBIUS_BASE_URL || "https://api.studio.nebius.ai/v1";
-  const model =
-    process.env.NEBIUS_MODEL || "meta-llama/Meta-Llama-3.1-70B-Instruct";
+    process.env.NEBIUS_BASE_URL ||
+    "https://api.tokenfactory.us-central1.nebius.com/v1";
+  const model = process.env.NEBIUS_MODEL || "nvidia/nemotron-3-super-120b-a12b";
 
   const startTime = Date.now();
 
@@ -175,19 +175,23 @@ export const callNebiusModel = async (
   }
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+    const response = await fetch(
+      `${baseUrl.replace(/\/+$/, "")}/chat/completions`,
+      {
+        method: "POST",
+        signal: AbortSignal.timeout(60_000),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.1,
+          response_format: { type: "json_object" },
+        }),
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.1,
-        response_format: { type: "json_object" },
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();

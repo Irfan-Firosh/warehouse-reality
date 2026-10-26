@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "typecheck": "next typegen && tsc --noEmit",
+    "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
@@ -30,5 +32,6 @@
     "typescript": "^5",
     "vitest": "^3.2.7"
   },
-  "packageManager": "pnpm@12.11.2"
+  "packageManager": "pnpm@12.11.2",
+  "license": "MIT"
 }
