@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import { SceneLoader } from "@/components/scene/scene-loader";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
 
 export const metadata: Metadata = {
-  title: "Warehouse Sim",
+  title: "Warehouse Sim · Operational Rehearsal Dashboard",
   description:
-    "Schematic 3D view of DFW Commerce Center Building I with an illustrative run state.",
+    "Decision-rehearsal simulator for DFW Commerce Center Building I with autonomous agents, authoritative commitments, and schematic 3D view.",
 };
 
 export default function Home() {
-  return (
-    <main className="h-dvh w-full bg-zinc-100 dark:bg-zinc-950">
-      <SceneLoader />
-    </main>
-  );
+  return <DashboardLayout />;
 }
