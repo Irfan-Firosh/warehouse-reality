@@ -1,8 +1,14 @@
 "use client";
 
+import { Aperture, Box, House, RotateCcw } from "lucide-react";
+import {
+  TextureButton,
+  type TextureButtonProps,
+} from "@/components/ui/texture-button";
 import type { ExceptionOption } from "@/lib/scene/exceptions";
 import { KIND_LABEL, statusText } from "@/lib/scene/status-text";
 import type { Entity } from "@/lib/scene/types";
+import { cn } from "@/lib/utils";
 
 export type MeshMode = "loading" | "models" | "failed" | "off";
 
@@ -35,8 +41,24 @@ interface SceneOverlayProps {
 
 const PILL =
   "pointer-events-auto rounded-md bg-zinc-900/80 text-zinc-100 shadow-sm backdrop-blur-sm";
-const TOGGLE =
-  "h-7 px-2.5 text-xs font-medium text-zinc-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-50 aria-pressed:bg-white/15";
+const ICON = "size-3.5";
+const SELECT =
+  "h-[30px] rounded-[6px] border border-black/20 bg-gradient-to-b from-white to-neutral-50 px-2 text-xs text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50 dark:border-neutral-950 dark:from-neutral-800 dark:to-neutral-700 dark:text-neutral-200 [&>option]:bg-white [&>option]:text-zinc-900";
+
+interface ToggleProps extends Omit<TextureButtonProps, "variant" | "size"> {
+  on: boolean;
+}
+
+/** A view switch: the dark "primary" face while on, "minimal" while off. */
+const Toggle = ({ on, className, ...props }: ToggleProps) => (
+  <TextureButton
+    variant={on ? "primary" : "minimal"}
+    size="sm"
+    className={cn("w-auto", className)}
+    aria-pressed={on}
+    {...props}
+  />
+);
 const LOST =
   "Graphics stopped (WebGL context lost), so the 3D view is paused. It restarts if the browser restores graphics; otherwise reload the page.";
 
@@ -124,12 +146,10 @@ export const SceneOverlay = ({
               </>
             )}
       </div>
-      <div
-        className={`${PILL} flex flex-wrap items-center justify-end divide-x divide-white/10`}
-      >
+      <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1">
         <select
           aria-label="Select an entity in an exception state"
-          className={`${TOGGLE} bg-transparent [&>option]:text-zinc-900`}
+          className={SELECT}
           value={
             exceptions.some((o) => o.id === selected?.id) ? selected?.id : ""
           }
@@ -143,45 +163,44 @@ export const SceneOverlay = ({
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          className={TOGGLE}
+        <Toggle
+          on={lens}
           onClick={onToggleLens}
-          aria-pressed={lens}
           disabled={graphicsLost}
           title="Tilt-shift miniature lens; the sharp band follows the selection"
         >
+          <Aperture className={ICON} />
           Lens
-        </button>
-        <button
-          type="button"
-          className={TOGGLE}
+        </Toggle>
+        <Toggle
+          on={roof}
           onClick={onToggleRoof}
-          aria-pressed={roof}
           disabled={graphicsLost}
           title={roof ? "Hide the roof" : "Show the roof"}
         >
+          <House className={ICON} />
           Roof
-        </button>
-        <button
-          type="button"
-          className={TOGGLE}
+        </Toggle>
+        <Toggle
+          on={meshes !== "off"}
           onClick={onToggleMeshes}
-          aria-pressed={meshes !== "off"}
           disabled={graphicsLost}
           title={MESH_TITLE[meshes]}
         >
+          <Box className={ICON} />
           {MESH_LABEL[meshes]}
-        </button>
-        <button
-          type="button"
-          className={TOGGLE}
+        </Toggle>
+        <TextureButton
+          variant="minimal"
+          size="sm"
+          className="w-auto"
           onClick={onReset}
           disabled={graphicsLost}
           title="Frame the whole site again"
         >
+          <RotateCcw className={ICON} />
           Reset
-        </button>
+        </TextureButton>
       </div>
     </div>
   </div>

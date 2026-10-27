@@ -1,5 +1,6 @@
 "use client";
 
+import { TextureButton } from "@/components/ui/texture-button";
 import type { AgentState, DeliberationResult } from "@/lib/agents/types";
 import { ProvenanceBadge } from "../provenance-badge";
 
@@ -82,11 +83,11 @@ export const AgentTab = ({
         {/* Deliberate Action Button */}
         {onTriggerDeliberation && (
           <div className="mt-2.5">
-            <button
-              type="button"
+            <TextureButton
+              variant="accent"
+              size="sm"
               disabled={isDeliberating}
               onClick={() => onTriggerDeliberation(activeAgentId)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {isDeliberating ? (
                 <>
@@ -96,7 +97,7 @@ export const AgentTab = ({
               ) : (
                 <span>✦ Run Agent Deliberation</span>
               )}
-            </button>
+            </TextureButton>
           </div>
         )}
       </section>

@@ -1,10 +1,21 @@
 "use client";
 
+import {
+  Ellipsis,
+  PanelLeft,
+  PanelRight,
+  Pause,
+  Play,
+  SkipForward,
+  Zap,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { TextureButton } from "@/components/ui/texture-button";
 
 const PILL =
   "pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-200 bg-white/90 p-1 text-zinc-950 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90 dark:text-zinc-50";
-const BUTTON =
+const ICON = "size-5 p-0.5";
+const MENU_ITEM =
   "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors duration-150 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800";
 
 interface TopBarProps {
@@ -55,50 +66,50 @@ export const TopBar = ({
         <span className="sr-only">{status} · </span>
         Day 1 · {logicalTime}
       </span>
-      <button
-        type="button"
+      <TextureButton
+        variant="icon"
+        size="icon"
         onClick={onTogglePause}
-        className={BUTTON}
         aria-label={isPaused ? "Resume simulation" : "Pause simulation"}
       >
-        {isPaused ? "▶" : "❚❚"}
-      </button>
-      <button
-        type="button"
+        {isPaused ? <Play className={ICON} /> : <Pause className={ICON} />}
+      </TextureButton>
+      <TextureButton
+        variant="icon"
+        size="icon"
         onClick={onNextEvent}
-        className={BUTTON}
         aria-label="Advance to the next scheduled event"
         title="Next event"
       >
-        ⏭
-      </button>
+        <SkipForward className={ICON} />
+      </TextureButton>
       <div
-        className="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
+        className="flex gap-0.5"
         title="Display pacing only; never changes simulation outcomes"
       >
         {([1, 4, 16] as const).map((s) => (
-          <button
+          <TextureButton
             key={s}
-            type="button"
+            variant={speed === s ? "primary" : "minimal"}
+            size="sm"
+            className="w-auto"
             onClick={() => onChangeSpeed(s)}
             aria-pressed={speed === s}
-            className={`h-6 px-1.5 text-[11px] font-medium transition-colors ${
-              speed === s
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-            }`}
           >
             {s}×
-          </button>
+          </TextureButton>
         ))}
       </div>
-      <button
-        type="button"
+      <TextureButton
+        variant="destructive"
+        size="sm"
+        className="w-auto"
         onClick={onOpenDisruptionModal}
-        className={`${BUTTON} text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950/60`}
+        aria-label="Inject a disruption"
       >
-        ⚡ <span className="hidden sm:inline">Disruption</span>
-      </button>
+        <Zap className="size-3.5" />
+        <span className="hidden sm:inline">Disruption</span>
+      </TextureButton>
     </header>
   );
 };
@@ -158,18 +169,18 @@ const MoreMenu = ({
 
   return (
     <div ref={root} className="relative">
-      <button
+      <TextureButton
         ref={trigger}
-        type="button"
+        variant="icon"
+        size="icon"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="more-actions"
         aria-label="More actions"
-        className={BUTTON}
       >
-        ⋯
-      </button>
+        <Ellipsis className={ICON} />
+      </TextureButton>
       {open && (
         <div
           id="more-actions"
@@ -180,7 +191,7 @@ const MoreMenu = ({
             type="button"
             role="menuitem"
             onClick={pick(onOpenEvidence)}
-            className={BUTTON}
+            className={MENU_ITEM}
           >
             Evidence · {unknownCount} unknowns
           </button>
@@ -188,7 +199,7 @@ const MoreMenu = ({
             type="button"
             role="menuitem"
             onClick={pick(onCheckpoint)}
-            className={BUTTON}
+            className={MENU_ITEM}
           >
             ⚑ Checkpoint
           </button>
@@ -209,22 +220,26 @@ export const ViewMenu = ({
   onCheckpoint,
 }: ViewMenuProps) => (
   <nav className={`${PILL} ml-auto`} aria-label="Panels">
-    <button
-      type="button"
+    <TextureButton
+      variant={facilityOpen ? "primary" : "minimal"}
+      size="sm"
+      className="w-auto"
       onClick={onToggleFacility}
       aria-pressed={facilityOpen}
-      className={`${BUTTON} aria-pressed:bg-zinc-100 dark:aria-pressed:bg-zinc-800`}
     >
+      <PanelLeft className="size-3.5" />
       Facility
-    </button>
-    <button
-      type="button"
+    </TextureButton>
+    <TextureButton
+      variant={inspectorOpen ? "primary" : "minimal"}
+      size="sm"
+      className="w-auto"
       onClick={onToggleInspector}
       aria-pressed={inspectorOpen}
-      className={`${BUTTON} aria-pressed:bg-zinc-100 dark:aria-pressed:bg-zinc-800`}
     >
+      <PanelRight className="size-3.5" />
       Inspector
-    </button>
+    </TextureButton>
     <MoreMenu
       unknownCount={unknownCount}
       onOpenEvidence={onOpenEvidence}
