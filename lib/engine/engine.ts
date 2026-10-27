@@ -385,7 +385,7 @@ export class SimulationEngine {
 
   public injectDisruption(
     disruptionId: string,
-    type: "dock_closure" | "equipment_failure",
+    type: "dock_closure" | "equipment_failure" | "external_delay",
     targetId: EntityId,
   ): ToolResult {
     if (type === "dock_closure") {
@@ -441,6 +441,26 @@ export class SimulationEngine {
         id: `E-${disruptionId}-FAIL`,
         logicalTime: this.state.logicalTime,
         type: "equipment_failed_disruption",
+        affectedIds: [targetId],
+        payload: { disruptionId, targetId },
+        stateVersion: this.state.stateVersion,
+      });
+
+      return {
+        success: true,
+        affectedIds: [targetId],
+        stateVersion: this.state.stateVersion,
+        eventIds: [event.id],
+      };
+    }
+
+    if (type === "external_delay") {
+      this.state.stateVersion += 1;
+
+      const event = this.emitEvent({
+        id: `E-${disruptionId}-EXTERNAL`,
+        logicalTime: this.state.logicalTime,
+        type: "external_delay_disruption",
         affectedIds: [targetId],
         payload: { disruptionId, targetId },
         stateVersion: this.state.stateVersion,
