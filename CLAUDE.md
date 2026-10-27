@@ -21,6 +21,11 @@ Next.js 16 (App Router), React 19, TypeScript 5 strict, Tailwind CSS 4, Biome, V
 - Rendering never decides outcomes. The engine and agents must work with graphics disabled.
 - The facility layout is schematic until a site plan is traced, and the UI must say so.
 
+## Task tracking
+- Hackathon build tasks live in Beads (`bd`), prefix `ws`. Read `docs/beads.md` before picking work.
+- Loop: `bd dolt pull` → `bd ready -l <lane>` → `bd update <id> --claim` → implement the plan task named in the bead → `bd close <id> -r "<commit>"` → `bd dolt push`.
+- Ownership per lane: `docs/feature-split.md`. Never edit files owned by the other lane.
+
 ## Commands
 - `pnpm dev`: start the dev server (localhost:3000)
 - `pnpm build`: production build
