@@ -16,7 +16,7 @@ export const EvidenceTab = () => {
         {EVIDENCE_RECORDS.map((rec) => (
           <section
             key={rec.id}
-            className="rounded-md border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-950/40 space-y-1.5 shadow-2xs"
+            className="rounded-md border border-zinc-200 bg-white p-2.5 dark:border-zinc-800 dark:bg-zinc-950/40 space-y-1.5"
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">

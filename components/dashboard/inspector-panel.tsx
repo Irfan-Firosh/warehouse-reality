@@ -40,7 +40,7 @@ export const InspectorPanel = ({
 }: InspectorPanelProps) => {
   if (!isOpen) {
     return (
-      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs">
+      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <button
           type="button"
           onClick={onToggle}
@@ -57,7 +57,7 @@ export const InspectorPanel = ({
   }
 
   return (
-    <aside className="w-80 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs overflow-hidden">
+    <aside className="w-full max-h-[70vh] lg:max-h-none lg:w-80 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
       {/* Tab Header */}
       <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20">
         <div role="tablist" className="flex flex-1 text-xs">
@@ -96,7 +96,10 @@ export const InspectorPanel = ({
       </div>
 
       {/* Tab Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div
+        key={activeTab}
+        className="flex-1 min-h-0 overflow-y-auto animate-rise"
+      >
         {activeTab === "agent" && (
           <AgentTab
             onSelectEntity={onSelectEntity}

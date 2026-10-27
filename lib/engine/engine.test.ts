@@ -74,6 +74,16 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
       expect(moveRes.message).toContain("closed");
     });
 
+    it("records an external delay as an event without changing physical state", () => {
+      const before = engine.getTrailer("T-SYN-01")?.location;
+      const res = engine.injectDisruption("EXT-1", "external_delay", "DRV-047");
+      expect(res.success).toBe(true);
+      expect(engine.getEventLog().at(-1)?.type).toBe(
+        "external_delay_disruption",
+      );
+      expect(engine.getTrailer("T-SYN-01")?.location).toEqual(before);
+    });
+
     it("P02: enforces cargo quantity conservation and survives interruption", () => {
       // Unload 8 of 20 pallets
       const unload1 = engine.executeUnload("T-SYN-01", "SH-SYN-01", 8);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TIMELINE_EVENTS } from "@/lib/dashboard/data";
 import type { TimelineEvent, TimelineEventType } from "@/types/dashboard";
 import { ProvenanceBadge } from "./provenance-badge";
@@ -32,9 +32,23 @@ export const CausalTimeline = ({
   events = TIMELINE_EVENTS,
 }: CausalTimelineProps) => {
   const [isOpen, setIsOpen] = useState(true);
+  const track = useRef<HTMLDivElement>(null);
+  const count = useRef(events.length);
+
+  // Bring a newly appended event into view; the initial list stays at the start.
+  useEffect(() => {
+    if (events.length <= count.current) return;
+    count.current = events.length;
+    const el = track.current;
+    if (!el) return;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    el.scrollTo({ left: el.scrollWidth, behavior: reduce ? "auto" : "smooth" });
+  }, [events.length]);
 
   return (
-    <footer className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 px-3 py-2 text-zinc-950 dark:text-zinc-50 shadow-xs">
+    <footer className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 px-3 py-2 text-zinc-950 dark:text-zinc-50">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -52,9 +66,15 @@ export const CausalTimeline = ({
       </div>
 
       {isOpen && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-1 text-xs">
+        <div
+          ref={track}
+          className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-1 text-xs"
+        >
           {events.map((evt, idx) => (
-            <div key={evt.id} className="flex items-center gap-1.5 shrink-0">
+            <div
+              key={evt.id}
+              className="flex animate-rise items-center gap-1.5 shrink-0"
+            >
               <div
                 className={`flex flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-[11px] leading-tight min-w-36 ${CARD_STYLES[evt.type]}`}
               >

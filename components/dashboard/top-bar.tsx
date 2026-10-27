@@ -18,6 +18,9 @@ interface TopBarProps {
   onToggleTheme: () => void;
 }
 
+const BTN =
+  "inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium transition hover:bg-zinc-100 active:translate-y-0 active:duration-75 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700";
+
 export const TopBar = ({
   logicalTime,
   isPaused,
@@ -34,9 +37,9 @@ export const TopBar = ({
   onToggleTheme,
 }: TopBarProps) => {
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 shadow-xs">
+    <header className="flex animate-settle flex-wrap [animation-delay:60ms] items-center gap-x-4 gap-y-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
       <div className="flex items-center gap-2">
-        <div className="grid size-7 place-items-center rounded-md bg-blue-600 text-xs font-bold text-white shadow-xs">
+        <div className="grid size-7 place-items-center rounded-md bg-blue-600 text-xs font-bold text-white">
           WS
         </div>
         <span className="font-semibold text-sm tracking-tight">
@@ -66,7 +69,7 @@ export const TopBar = ({
 
       <div className="flex flex-col leading-tight hidden md:flex">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Run Mode
+          Run mode
         </span>
         <span className="text-xs font-medium flex items-center gap-1">
           Distributed agents · FCFS fallback
@@ -75,7 +78,7 @@ export const TopBar = ({
 
       <div className="flex flex-col leading-tight">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Logical Time
+          Logical time
         </span>
         <span className="font-mono tabular-nums text-xs font-semibold text-blue-600 dark:text-blue-400">
           Day 1 · {logicalTime}
@@ -107,10 +110,10 @@ export const TopBar = ({
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <span className="mr-1 hidden xl:inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
           <span
-            className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-ping" : "animate-pulse"}`}
+            className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-pulse" : ""}`}
           />
           {isDeliberating
-            ? "NVIDIA model deliberating..."
+            ? "Agent deliberating…"
             : isPaused
               ? "Time paused · agents standby"
               : "Simulation running"}
@@ -119,7 +122,7 @@ export const TopBar = ({
         <button
           type="button"
           onClick={onTogglePause}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+          className={BTN}
           title={isPaused ? "Resume simulation" : "Pause simulation"}
         >
           {isPaused ? "▶ Resume" : "❚❚ Pause"}
@@ -128,10 +131,10 @@ export const TopBar = ({
         <button
           type="button"
           onClick={onNextEvent}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+          className={BTN}
           title="Advance to next scheduled event"
         >
-          ⏭ Next event
+          Next event
         </button>
 
         <div
@@ -143,7 +146,7 @@ export const TopBar = ({
               key={s}
               type="button"
               onClick={() => onChangeSpeed(s)}
-              className={`h-7 px-2 text-xs font-medium transition-colors ${
+              className={`h-7 px-2 text-xs font-medium tabular-nums transition-colors ${
                 speed === s
                   ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                   : "bg-white text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
@@ -157,39 +160,45 @@ export const TopBar = ({
         <button
           type="button"
           onClick={onCheckpoint}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden sm:inline-flex"
+          className={`${BTN} hidden sm:inline-flex`}
         >
-          ⚑ Checkpoint
+          Checkpoint
         </button>
 
         <button
           type="button"
           onClick={onBranch}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden sm:inline-flex"
+          className={`${BTN} hidden sm:inline-flex`}
         >
-          ⑂ Branch
+          Branch
         </button>
 
         <button
           type="button"
           onClick={onCompare}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden md:inline-flex"
+          className={`${BTN} hidden md:inline-flex`}
         >
-          ⇄ Compare
+          Compare
         </button>
 
         <button
           type="button"
           onClick={onOpenDisruptionModal}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-amber-500/50 bg-amber-50/80 px-2 text-xs font-medium text-amber-900 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 transition-colors"
+          className="group inline-flex h-7 items-center gap-1 rounded-md bg-amber-600 px-2.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-amber-700 active:translate-y-0 active:duration-75 focus-visible:outline-2 focus-visible:outline-amber-500"
         >
-          ⚡ Disruption
+          Inject disruption
+          <span
+            aria-hidden="true"
+            className="transition-transform group-hover:translate-x-[3px]"
+          >
+            →
+          </span>
         </button>
 
         <button
           type="button"
           onClick={onToggleTheme}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+          className={`${BTN} w-7 justify-center px-0`}
           title="Toggle color theme"
           aria-label="Toggle theme"
         >
