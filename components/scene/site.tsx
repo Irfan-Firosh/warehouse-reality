@@ -2,8 +2,10 @@
 
 import type { ThreeEvent } from "@react-three/fiber";
 import { useMemo } from "react";
+import type { Bounds } from "@/lib/scene/camera-fit";
 import { HALF_D, HALF_L, S1 } from "@/lib/scene/facility";
 import { boxPart } from "@/lib/scene/fit-model";
+import { GATE_ROAD } from "@/lib/scene/layout";
 import type { Placement, SceneState } from "@/lib/scene/types";
 import { InstancedParts, type PickHandlers } from "./instanced-parts";
 import { atBottom, type EntityItem, placed } from "./items";
@@ -11,6 +13,8 @@ import { type ScenePalette, statusColor } from "./palette";
 
 const COURT_W = S1.courtDepth + S1.trailerParkDepth;
 const WALL_H = S1.clearHeight + 4;
+/** Ground beyond the outermost entity, in ft; just enough that nothing sits on the edge. */
+const GROUND_MARGIN = 40;
 
 /** Ground, courts and shell block picks so hidden entities behind them stay unpicked; a click on them clears the selection. */
 const blockPick = (pick: PickHandlers) => ({
@@ -32,19 +36,20 @@ interface SlabProps {
 }
 
 const Slab = ({ size, position, color, pick }: SlabProps) => (
-  <mesh position={position} {...blockPick(pick)}>
+  <mesh position={position} castShadow receiveShadow {...blockPick(pick)}>
     <boxGeometry args={size} />
     <meshLambertMaterial color={color} />
   </mesh>
 );
 
 interface ShellProps {
+  bounds: Bounds;
   palette: ScenePalette;
   roof: boolean;
   pick: PickHandlers;
 }
 
-export const Shell = ({ palette: p, roof, pick }: ShellProps) => {
+export const Shell = ({ bounds, palette: p, roof, pick }: ShellProps) => {
   const walls: [[number, number, number], [number, number, number]][] = [
     [
       [S1.length, WALL_H, 2],
@@ -66,8 +71,16 @@ export const Shell = ({ palette: p, roof, pick }: ShellProps) => {
   return (
     <group>
       <Slab
-        size={[S1.length + 900, 1, S1.depth + 2 * COURT_W + 500]}
-        position={[0, -1, 0]}
+        size={[
+          bounds.max[0] - bounds.min[0] + 2 * GROUND_MARGIN,
+          1,
+          bounds.max[2] - bounds.min[2] + 2 * GROUND_MARGIN,
+        ]}
+        position={[
+          (bounds.min[0] + bounds.max[0]) / 2,
+          -1,
+          (bounds.min[2] + bounds.max[2]) / 2,
+        ]}
         color={p.ground}
         pick={pick}
       />
@@ -80,6 +93,12 @@ export const Shell = ({ palette: p, roof, pick }: ShellProps) => {
           pick={pick}
         />
       ))}
+      <Slab
+        size={[GATE_ROAD.width, 0.5, S1.depth + COURT_W]}
+        position={[GATE_ROAD.x, 0, COURT_W / 2]}
+        color={p.asphalt}
+        pick={pick}
+      />
       <Slab
         size={[S1.length, 0.6, S1.depth]}
         position={[0, 0.4, 0]}

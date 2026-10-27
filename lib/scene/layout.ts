@@ -16,8 +16,9 @@ const DOOR_GAP = 4;
 const HITCH_GAP = 1;
 const TRAILER_CLEARANCE = 1.5;
 const MOVE_LANE_Z = HALF_D + 70;
-const GATE_LANE_Z = HALF_D + 100;
-const GATE_X0 = -HALF_L - 120;
+/** The gate queue lines up northward on an access road off the west end, facing the south court. */
+export const GATE_ROAD = { x: -HALF_L - 90, width: 40 } as const;
+const GATE_FRONT_Z = HALF_D + 40;
 const GATE_SPACING = 80;
 const YARD_PARK = { x0: HALF_L - 60, z: HALF_D + 120, spacing: 30 } as const;
 const STALL_GAP = 2;
@@ -108,10 +109,10 @@ const trailerPlacement = (
     };
   }
   return {
-    x: GATE_X0 - (t.queueIndex ?? 0) * GATE_SPACING,
+    x: GATE_ROAD.x,
     y: TRAILER_Y,
-    z: GATE_LANE_Z,
-    rotY: Math.PI / 2,
+    z: GATE_FRONT_Z - (t.queueIndex ?? 0) * GATE_SPACING,
+    rotY: 0,
     dir: 1,
     size: TRAILER_SIZE,
   };

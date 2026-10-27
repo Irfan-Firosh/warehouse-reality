@@ -2,44 +2,83 @@
 
 import { DEPENDENCIES, UNKNOWN_DFW_FIELDS } from "@/lib/dashboard/data";
 import { S1 } from "@/lib/scene/facility";
-import type { DashboardCounts } from "@/types/dashboard";
+import type { DashboardCounts, ProvenanceKind } from "@/types/dashboard";
 import { ProvenanceBadge } from "./provenance-badge";
 
 interface FacilityPanelProps {
   isOpen: boolean;
   counts: DashboardCounts;
+  stateVersion: number;
   onToggle: () => void;
   onSelectEntity: (id: string) => void;
   onOpenEvidence: () => void;
 }
 
+const LEGEND: readonly {
+  kind: ProvenanceKind;
+  badge: string;
+  meaning: string;
+}[] = [
+  { kind: "src", badge: "S1", meaning: "published spec" },
+  { kind: "drv", badge: "derived", meaning: "derived conversion" },
+  { kind: "hyp", badge: "hypothetical", meaning: "injected" },
+  { kind: "unk", badge: "unknown", meaning: "no evidence" },
+  { kind: "ill", badge: "illus→sim", meaning: "placeholder" },
+];
+
+/** Engine banner, profile, workload and provenance legend; moved here from the old top bar and banner. */
+interface RunContextProps {
+  stateVersion: number;
+}
+
+const RunContext = ({ stateVersion }: RunContextProps) => (
+  <div className="space-y-1.5 text-zinc-700 dark:text-zinc-300">
+    <p className="rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 px-2 py-1 text-[11px] text-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+      Live Simulation State: engine v{stateVersion} · DFW S1 physical invariants
+      enforced.
+    </p>
+    <div className="flex items-center justify-between">
+      <span>Profile</span>
+      <span className="flex items-center gap-1 font-medium">
+        DFW Bldg I <ProvenanceBadge kind="src">v1 · S1</ProvenanceBadge>
+      </span>
+    </div>
+    <div className="flex items-center justify-between">
+      <span>Workload</span>
+      <span className="flex items-center gap-1 font-medium">
+        Demo Day v2 <ProvenanceBadge kind="drv">vol derived</ProvenanceBadge>
+      </span>
+    </div>
+    <div className="flex items-center justify-between">
+      <span>Run mode</span>
+      <span className="font-medium">Distributed agents · FCFS fallback</span>
+    </div>
+    <ul className="flex flex-wrap gap-x-2 gap-y-1 pt-1 text-[11px]">
+      {LEGEND.map(({ kind, badge, meaning }) => (
+        <li key={kind} className="flex items-center gap-1">
+          <ProvenanceBadge kind={kind}>{badge}</ProvenanceBadge>
+          <span className="text-zinc-500">{meaning}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
 export const FacilityPanel = ({
   isOpen,
   counts,
+  stateVersion,
   onToggle,
   onSelectEntity,
   onOpenEvidence,
 }: FacilityPanelProps) => {
-  if (!isOpen) {
-    return (
-      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex h-full w-full flex-col items-center gap-3 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          aria-label="Expand facility panel"
-        >
-          <span className="text-xs font-bold">»</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
-            Facility
-          </span>
-        </button>
-      </aside>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <aside className="w-72 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs overflow-hidden">
+    <aside
+      aria-label="Facility resources"
+      className="pointer-events-auto absolute inset-y-0 left-0 flex w-72 max-w-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white/95 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95"
+    >
       <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20">
         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Facility Resources
@@ -48,13 +87,14 @@ export const FacilityPanel = ({
           type="button"
           onClick={onToggle}
           className="grid size-6 place-items-center rounded text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          aria-label="Collapse facility panel"
+          aria-label="Close facility panel"
         >
-          «
+          ✕
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
+        <RunContext stateVersion={stateVersion} />
         {/* Published Capacity */}
         <details open className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">

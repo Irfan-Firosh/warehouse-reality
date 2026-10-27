@@ -95,6 +95,8 @@ export const InstancedParts = <T extends InstanceItem>({
             meshes.current[i] = m;
           }}
           args={[p.geometry, p.material, items.length]}
+          castShadow
+          receiveShadow
           {...handlers}
         />
       ))}

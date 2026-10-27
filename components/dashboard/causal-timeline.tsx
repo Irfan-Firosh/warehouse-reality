@@ -28,63 +28,93 @@ interface CausalTimelineProps {
   events?: readonly TimelineEvent[];
 }
 
+/** The newest event that has happened; scheduled ones are still in the future. */
+const latestOf = (
+  events: readonly TimelineEvent[],
+): TimelineEvent | undefined =>
+  events.findLast((e) => e.type !== "scheduled") ?? events[0];
+
+/**
+ * One line with the latest event; it opens into the full causal chain on a
+ * line of its own. Both are items of the parent flex-wrap row.
+ */
 export const CausalTimeline = ({
   events = TIMELINE_EVENTS,
 }: CausalTimelineProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const latest = latestOf(events);
 
   return (
-    <footer className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 px-3 py-2 text-zinc-950 dark:text-zinc-50 shadow-xs">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setIsOpen((open) => !open)}
-          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-        >
-          <span className="text-[10px]">{isOpen ? "▾" : "▸"}</span>
-          <span>Causal Timeline · Disruption H-1 → Commitment C-88</span>
-          <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
-        </button>
-        <span className="text-[11px] text-zinc-500 font-mono hidden sm:inline">
-          Inference: reported separately from logical time · authoritative
-          ordering
-        </span>
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-expanded={isOpen}
+        aria-controls="causal-timeline"
+        className="pointer-events-auto order-last flex h-9 min-w-0 grow basis-full items-center gap-2 sm:order-none sm:basis-0 rounded-lg border border-zinc-200 bg-white/90 px-2.5 text-xs text-zinc-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900/90 dark:text-zinc-300 dark:hover:bg-zinc-900"
+      >
+        <span className="text-[10px]">{isOpen ? "▾" : "▸"}</span>
+        {latest ? (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="font-mono text-[10px] text-zinc-500">
+              {latest.time}
+            </span>
+            <span className="font-mono font-semibold">{latest.source}</span>
+            <span className="truncate">{latest.title}</span>
+          </span>
+        ) : (
+          <span>No events yet</span>
+        )}
+        <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+      </button>
 
       {isOpen && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-1 text-xs">
-          {events.map((evt, idx) => (
-            <div key={evt.id} className="flex items-center gap-1.5 shrink-0">
-              <div
-                className={`flex flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-[11px] leading-tight min-w-36 ${CARD_STYLES[evt.type]}`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[10px] opacity-75">
-                    {evt.time}
-                  </span>
-                  {evt.tag && (
-                    <ProvenanceBadge kind="hyp">{evt.tag}</ProvenanceBadge>
-                  )}
-                  {evt.isLLM && (
-                    <span className="rounded bg-blue-100 px-1 text-[9px] font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
-                      LLM
+        <div
+          id="causal-timeline"
+          className="pointer-events-auto order-last min-w-0 basis-full rounded-lg border border-zinc-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95"
+        >
+          <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+            <span className="font-semibold uppercase tracking-wider">
+              Causal timeline · Disruption H-1 → Commitment C-88
+            </span>
+            <span className="hidden font-mono sm:inline">
+              Inference reported separately from logical time
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-1 text-xs">
+            {events.map((evt, idx) => (
+              <div key={evt.id} className="flex shrink-0 items-center gap-1.5">
+                <div
+                  className={`flex min-w-36 flex-col gap-0.5 rounded-md border px-2.5 py-1.5 text-[11px] leading-tight ${CARD_STYLES[evt.type]}`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-mono text-[10px] opacity-75">
+                      {evt.time}
                     </span>
-                  )}
+                    {evt.tag && (
+                      <ProvenanceBadge kind="hyp">{evt.tag}</ProvenanceBadge>
+                    )}
+                    {evt.isLLM && (
+                      <span className="rounded bg-blue-100 px-1 text-[9px] font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                        LLM
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-mono text-[11px] font-semibold">
+                    {evt.source}
+                  </div>
+                  <div className="max-w-44 truncate" title={evt.title}>
+                    {evt.title}
+                  </div>
                 </div>
-                <div className="font-semibold text-[11px] font-mono">
-                  {evt.source}
-                </div>
-                <div className="truncate max-w-44" title={evt.title}>
-                  {evt.title}
-                </div>
+                {idx < events.length - 1 && (
+                  <span className="select-none text-xs text-zinc-400">→</span>
+                )}
               </div>
-              {idx < events.length - 1 && (
-                <span className="text-zinc-400 select-none text-xs">→</span>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
-    </footer>
+    </>
   );
 };

@@ -19,41 +19,62 @@ export interface ScenePalette {
   stallUsed: number;
   staging: number;
   load: number;
+  /** Lighting and grade: a sunny miniature by day, a low-saturation dusk in dark mode. */
+  sun: number;
+  sunIntensity: number;
+  sky: number;
+  bounce: number;
+  skyIntensity: number;
+  saturation: number;
 }
 
+// Model-railway paint: a grass board on a warm tabletop, dark asphalt so white trailers pop, pale warm building.
 const LIGHT: ScenePalette = {
-  bg: 0xe4e4e7,
-  ground: 0xd4d4d8,
-  asphalt: 0xa1a1aa,
-  wall: 0x9ca3af,
-  roof: 0xb8b8c0,
-  floor: 0xcfcfd4,
-  trailer: 0xf4f4f5,
-  chassis: 0x52525b,
-  road: 0x3f3f46,
-  yard: 0x475569,
-  free: 0x71717a,
-  stallFree: 0xe4e4e7,
-  stallUsed: 0x8a8a93,
-  staging: 0xbfc5d2,
+  bg: 0xe7e1d6,
+  ground: 0x86ad68,
+  asphalt: 0x4d535b,
+  wall: 0xefe5d3,
+  roof: 0xddd6c8,
+  floor: 0xd6cbb6,
+  trailer: 0xfafaf7,
+  chassis: 0x2b2e33,
+  road: 0x2f4a7a,
+  yard: 0x5b6b82,
+  free: 0x6b7280,
+  stallFree: 0x6a7078,
+  stallUsed: 0x3d4249,
+  staging: 0xcdbb92,
   load: 0xc8a97e,
+  sun: 0xfff1dc,
+  sunIntensity: 2.4,
+  sky: 0xd6ecff,
+  bounce: 0x9c8a6a,
+  skyIntensity: 1.1,
+  saturation: 0.16,
 };
+// Dusk: the same model after sunset, lower saturation and a cool low light.
 const DARK: ScenePalette = {
-  bg: 0x111113,
-  ground: 0x18181b,
-  asphalt: 0x3a3a41,
-  wall: 0x52525b,
-  roof: 0x5b5b63,
-  floor: 0x2a2a2f,
+  bg: 0x0e1210,
+  ground: 0x2c4232,
+  asphalt: 0x353a42,
+  wall: 0x7a7a80,
+  roof: 0x5e6068,
+  floor: 0x3a3a3f,
   trailer: 0xd4d4d8,
-  chassis: 0x27272a,
-  road: 0x5b5b66,
-  yard: 0x4b5d7a,
-  free: 0x6b6b74,
-  stallFree: 0x8b8b94,
-  stallUsed: 0x27272a,
+  chassis: 0x1f2023,
+  road: 0x5470a8,
+  yard: 0x5b6d8a,
+  free: 0x7a7a84,
+  stallFree: 0x555a63,
+  stallUsed: 0x2a2d32,
   staging: 0x3a4152,
   load: 0x9c8462,
+  sun: 0xffe2c8,
+  sunIntensity: 1.7,
+  sky: 0x8aa0c8,
+  bounce: 0x2a2620,
+  skyIntensity: 1.4,
+  saturation: 0.05,
 };
 
 export const STATUS = {

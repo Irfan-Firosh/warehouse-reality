@@ -7,14 +7,21 @@ import type { Entity } from "@/lib/scene/types";
 export type MeshMode = "loading" | "models" | "failed" | "off";
 
 const MESH_LABEL: Readonly<Record<MeshMode, string>> = {
-  loading: "Meshes: primitives, models loading",
-  models: "Meshes: free models",
-  failed: "Meshes: primitives, models failed",
-  off: "Meshes: primitives",
+  loading: "Models…",
+  models: "Models",
+  failed: "Models ✕",
+  off: "Models",
+};
+const MESH_TITLE: Readonly<Record<MeshMode, string>> = {
+  loading: "Primitives shown while the free models load",
+  models: "Free models on; click for primitives",
+  failed: "Models failed to load; primitives shown",
+  off: "Primitives on; click for the free models",
 };
 
 interface SceneOverlayProps {
   roof: boolean;
+  lens: boolean;
   meshes: MeshMode;
   graphicsLost: boolean;
   exceptions: readonly ExceptionOption[];
@@ -22,32 +29,67 @@ interface SceneOverlayProps {
   onSelect: (id: string | null) => void;
   onToggleRoof: () => void;
   onToggleMeshes: () => void;
+  onToggleLens: () => void;
   onReset: () => void;
 }
 
-const BUTTON =
-  "pointer-events-auto rounded-md border border-zinc-300 bg-white/90 px-2.5 py-1.5 text-xs font-medium text-zinc-900 transition-colors duration-150 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-100 dark:hover:bg-zinc-800";
-const LABEL =
-  "w-fit rounded bg-zinc-900/80 px-2 py-1 font-mono text-[10px] text-zinc-200";
-const HINT =
-  "Click a door, stall, trailer or forklift, or pick one from Exceptions, to select it. Esc clears.";
+const PILL =
+  "pointer-events-auto rounded-md bg-zinc-900/80 text-zinc-100 shadow-sm backdrop-blur-sm";
+const TOGGLE =
+  "h-7 px-2.5 text-xs font-medium text-zinc-100 transition-colors duration-150 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-50 aria-pressed:bg-white/15";
 const LOST =
   "Graphics stopped (WebGL context lost), so the 3D view is paused. It restarts if the browser restores graphics; otherwise reload the page.";
 
-const Selection = ({ selected }: { selected: Entity | undefined }) =>
-  selected ? (
-    <>
-      <b className="font-mono">{selected.id}</b> · {KIND_LABEL[selected.kind]}
-      <br />
-      {statusText(selected)}
-    </>
-  ) : (
-    HINT
-  );
+/** Required labels (schematic layout, illustrative state, model credits) in one chip; details open on demand. */
+const ProvenanceChip = ({ models }: { models: boolean }) => (
+  <details className={`${PILL} group max-w-full text-[11px]`}>
+    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-1.5 px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
+      <span className="font-mono uppercase tracking-wider text-amber-300">
+        Schematic layout
+      </span>
+      <span className="text-zinc-500">·</span>
+      <span className="text-sky-200">Illustrative state</span>
+      <span className="text-zinc-500">·</span>
+      <span className="text-zinc-300 group-open:text-white">
+        Details & credits
+      </span>
+    </summary>
+    <div className="max-w-sm space-y-1 border-t border-white/10 px-2.5 pt-1.5 pb-2 text-zinc-300 leading-snug">
+      <p>
+        Door and stall positions are not surveyed. DFW Commerce Center Building
+        I · 182 doors · 4 ramps · 235 trailer spaces (S1).
+      </p>
+      <p>Illustrative run state · not facility data or results.</p>
+      <p className="[&_a]:underline">
+        {models ? "Models: " : "Models (off): "}
+        <a
+          href="https://poly.pizza/m/DTQBuenKJY"
+          target="_blank"
+          rel="noreferrer"
+        >
+          &quot;Forklift&quot;
+        </a>{" "}
+        by KolosStudios,{" "}
+        <a
+          href="https://creativecommons.org/licenses/by/3.0/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          CC BY 3.0
+        </a>
+        , modified · semi by WilliWam, container and pallet by Quaternius, CC0 ·
+        pallets are decoration ·{" "}
+        <a href="/models/ATTRIBUTION.md" target="_blank" rel="noreferrer">
+          all credits
+        </a>
+      </p>
+    </div>
+  </details>
+);
 
-/** Required labels (schematic layout, illustrative state, model credit) plus the minimal scene controls. */
 export const SceneOverlay = ({
   roof,
+  lens,
   meshes,
   graphicsLost,
   exceptions,
@@ -55,81 +97,39 @@ export const SceneOverlay = ({
   onSelect,
   onToggleRoof,
   onToggleMeshes,
+  onToggleLens,
   onReset,
 }: SceneOverlayProps) => (
-  <>
-    <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex flex-col gap-1.5 sm:max-w-[60%]">
-        <span
-          className={`${LABEL} font-medium uppercase tracking-wider text-amber-300`}
-        >
-          Schematic layout · door and stall positions not surveyed
-        </span>
-        <span className={LABEL}>
-          DFW Commerce Center Building I · 182 doors · 4 ramps · 235 trailer
-          spaces (S1)
-        </span>
-        <span className={`${LABEL} text-sky-200`}>
-          Illustrative run state · not facility data or results
-        </span>
-        {meshes === "models" && (
-          <span
-            className={`${LABEL} pointer-events-auto font-sans [&_a]:underline`}
-          >
-            Models:{" "}
-            <a
-              href="https://poly.pizza/m/DTQBuenKJY"
-              target="_blank"
-              rel="noreferrer"
-            >
-              &quot;Forklift&quot;
-            </a>{" "}
-            by KolosStudios,{" "}
-            <a
-              href="https://creativecommons.org/licenses/by/3.0/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              CC BY 3.0
-            </a>
-            , modified · semi by WilliWam, container and pallet by Quaternius,
-            CC0 · pallets are decoration ·{" "}
-            <a href="/models/ATTRIBUTION.md" target="_blank" rel="noreferrer">
-              all credits
-            </a>
-          </span>
-        )}
+  // One wrapping row, so the required labels never sit under the controls;
+  // above the drawers so a tall wrapped row stays visible.
+  <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex flex-wrap-reverse items-end justify-between gap-1.5">
+    <ProvenanceChip models={meshes === "models"} />
+    <div className="ml-auto flex max-w-full flex-wrap-reverse items-end justify-end gap-1.5">
+      <div
+        aria-live="polite"
+        className={
+          selected || graphicsLost
+            ? `${PILL} max-w-80 px-2.5 py-1.5 text-xs`
+            : "sr-only"
+        }
+      >
+        {graphicsLost
+          ? LOST
+          : selected && (
+              <>
+                <b className="font-mono">{selected.id}</b> ·{" "}
+                {KIND_LABEL[selected.kind]}
+                <br />
+                {statusText(selected)}
+              </>
+            )}
       </div>
-      <div className="flex flex-wrap items-start gap-1.5 sm:flex-col sm:items-end">
-        <button
-          type="button"
-          className={BUTTON}
-          onClick={onToggleRoof}
-          aria-pressed={!roof}
-          disabled={graphicsLost}
-        >
-          Roof: {roof ? "on" : "off"}
-        </button>
-        <button
-          type="button"
-          className={BUTTON}
-          onClick={onToggleMeshes}
-          aria-pressed={meshes === "off"}
-          disabled={graphicsLost}
-        >
-          {MESH_LABEL[meshes]}
-        </button>
-        <button
-          type="button"
-          className={BUTTON}
-          onClick={onReset}
-          disabled={graphicsLost}
-        >
-          Reset camera
-        </button>
+      <div
+        className={`${PILL} flex flex-wrap items-center justify-end divide-x divide-white/10`}
+      >
         <select
           aria-label="Select an entity in an exception state"
-          className={BUTTON}
+          className={`${TOGGLE} bg-transparent [&>option]:text-zinc-900`}
           value={
             exceptions.some((o) => o.id === selected?.id) ? selected?.id : ""
           }
@@ -143,13 +143,46 @@ export const SceneOverlay = ({
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          className={TOGGLE}
+          onClick={onToggleLens}
+          aria-pressed={lens}
+          disabled={graphicsLost}
+          title="Tilt-shift miniature lens; the sharp band follows the selection"
+        >
+          Lens
+        </button>
+        <button
+          type="button"
+          className={TOGGLE}
+          onClick={onToggleRoof}
+          aria-pressed={roof}
+          disabled={graphicsLost}
+          title={roof ? "Hide the roof" : "Show the roof"}
+        >
+          Roof
+        </button>
+        <button
+          type="button"
+          className={TOGGLE}
+          onClick={onToggleMeshes}
+          aria-pressed={meshes !== "off"}
+          disabled={graphicsLost}
+          title={MESH_TITLE[meshes]}
+        >
+          {MESH_LABEL[meshes]}
+        </button>
+        <button
+          type="button"
+          className={TOGGLE}
+          onClick={onReset}
+          disabled={graphicsLost}
+          title="Frame the whole site again"
+        >
+          Reset
+        </button>
       </div>
     </div>
-    <div
-      aria-live="polite"
-      className="absolute right-3 bottom-3 left-3 rounded-md bg-zinc-900/85 px-2.5 py-1.5 text-xs text-zinc-100 sm:left-auto sm:max-w-80"
-    >
-      {graphicsLost ? LOST : <Selection selected={selected} />}
-    </div>
-  </>
+  </div>
 );
