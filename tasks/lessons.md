@@ -6,3 +6,4 @@
 - Never leave the shared browser on a failure-injection test (blocked routes, odd localStorage); reload a clean page afterwards. Why: the user saw "models failed" from a test page left open.
 - Build UI as React components in the Next.js app, not as standalone HTML pages; a mockup is only for a question the user asked to explore visually. Why: the dashboard was built as an HTML page and the user wanted the real React frontend.
 - After testing at a fixed viewport size in the shared browser, set the viewport back to the browser window's size. Why: a 1600 px test viewport inside a 1920 px window left a grey strip the user took for a layout bug.
+- Run `pnpm check` before pushing any commit that includes files written by a tool (bd init, generators), not just code you wrote. Why: bd init committed `.beads/metadata.json` without a final newline and CI failed on Biome.
