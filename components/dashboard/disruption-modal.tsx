@@ -67,7 +67,7 @@ export const DisruptionModal = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="disruption-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4"
+      className="fixed inset-0 z-50 flex animate-fade items-center justify-center bg-zinc-950/40 p-4"
     >
       <div className="w-full max-w-lg animate-rise rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 space-y-4 max-h-[90vh] flex flex-col">
         {/* Header */}
@@ -121,7 +121,10 @@ export const DisruptionModal = ({
         </div>
 
         {/* Tab Body */}
-        <div className="overflow-y-auto space-y-3 flex-1 pr-1 text-xs">
+        <div
+          key={activeTab}
+          className="overflow-y-auto space-y-3 flex-1 pr-1 text-xs animate-rise"
+        >
           {activeTab === "hypothetical" ? (
             <>
               <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed text-[11px]">

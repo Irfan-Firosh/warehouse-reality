@@ -52,7 +52,10 @@ export const AgentTab = ({
       )}
 
       {/* Header Profile */}
-      <section className="rounded-md border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/30">
+      <section
+        key={activeAgentId}
+        className="animate-rise rounded-md border border-zinc-200 bg-zinc-50/50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/30"
+      >
         <div className="flex items-center justify-between">
           <div>
             <div className="font-semibold text-sm">
@@ -93,7 +96,7 @@ export const AgentTab = ({
               type="button"
               disabled={isDeliberating}
               onClick={() => onTriggerDeliberation(activeAgentId)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-blue-700 active:translate-y-0 active:duration-75 focus-visible:outline-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:opacity-50"
             >
               {isDeliberating ? (
                 <>
@@ -110,7 +113,10 @@ export const AgentTab = ({
 
       {/* Recent Model Thought / Deliberation */}
       {lastDeliberation && (
-        <section className="rounded-md border border-blue-500/40 bg-blue-50/30 p-2.5 dark:border-blue-500/30 dark:bg-blue-950/20">
+        <section
+          key={`${lastDeliberation.agentId}:${lastDeliberation.thought}`}
+          className="animate-rise rounded-md border border-blue-500/40 bg-blue-50/30 p-2.5 dark:border-blue-500/30 dark:bg-blue-950/20"
+        >
           <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300 mb-1 flex items-center justify-between">
             <span>Agent reasoning</span>
             <span className="font-mono text-[10px] font-normal normal-case tracking-normal text-zinc-500">

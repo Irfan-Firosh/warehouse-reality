@@ -19,7 +19,7 @@ interface TopBarProps {
 }
 
 const BTN =
-  "inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700";
+  "inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium transition hover:bg-zinc-100 active:translate-y-0 active:duration-75 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700";
 
 export const TopBar = ({
   logicalTime,
@@ -37,7 +37,7 @@ export const TopBar = ({
   onToggleTheme,
 }: TopBarProps) => {
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
+    <header className="flex animate-settle flex-wrap [animation-delay:60ms] items-center gap-x-4 gap-y-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
       <div className="flex items-center gap-2">
         <div className="grid size-7 place-items-center rounded-md bg-blue-600 text-xs font-bold text-white">
           WS
@@ -184,7 +184,7 @@ export const TopBar = ({
         <button
           type="button"
           onClick={onOpenDisruptionModal}
-          className="group inline-flex h-7 items-center gap-1 rounded-md bg-amber-600 px-2.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-amber-700 focus-visible:outline-2 focus-visible:outline-amber-500"
+          className="group inline-flex h-7 items-center gap-1 rounded-md bg-amber-600 px-2.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-amber-700 active:translate-y-0 active:duration-75 focus-visible:outline-2 focus-visible:outline-amber-500"
         >
           Inject disruption
           <span

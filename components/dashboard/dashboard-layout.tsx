@@ -124,7 +124,7 @@ export const DashboardLayout = () => {
       />
 
       {/* Disclaimer Banner and Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1 text-[11px] text-amber-900 dark:text-amber-300">
+      <div className="flex animate-settle flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1 text-[11px] text-amber-900 dark:text-amber-300">
         <span>
           Prototype · engine state v{stateVersion} · scene and summary counts
           are illustrative.
@@ -181,7 +181,7 @@ export const DashboardLayout = () => {
       />
 
       {/* Main 3-Column Working Grid */}
-      <main className="flex min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:overflow-hidden">
+      <main className="flex min-h-0 flex-1 animate-arrive flex-col gap-2 [animation-delay:140ms] lg:grid lg:grid-cols-[auto_1fr_auto] lg:overflow-hidden">
         {/* Left: Facility & Capacity */}
         <FacilityPanel
           isOpen={leftOpen}
@@ -218,7 +218,9 @@ export const DashboardLayout = () => {
       </main>
 
       {/* Bottom: Causal Event Timeline */}
-      <CausalTimeline events={timelineEvents} />
+      <div className="animate-arrive [animation-delay:300ms]">
+        <CausalTimeline events={timelineEvents} />
+      </div>
     </div>
   );
 };

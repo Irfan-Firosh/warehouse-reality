@@ -19,6 +19,7 @@ import {
   TARGET_DOOR,
 } from "@/lib/scene/illustrative-state";
 import { buildLayout } from "@/lib/scene/layout";
+import { type CameraGoal, CameraRig, goalFrom } from "./camera-rig";
 import { PRIMITIVE_KIT } from "./model-kit";
 import { usePalette } from "./palette";
 import { type MeshMode, SceneOverlay } from "./scene-overlay";
@@ -30,6 +31,14 @@ import { LANES, Vehicles } from "./vehicles";
 
 const HOME = { position: [-1250, 1150, 1550], target: [-160, 0, 60] } as const;
 const CLICK_SLOP_PX = 5;
+// Focus keeps the home viewing angle but pulls in to this distance from the entity.
+const FOCUS_DISTANCE = 650;
+const VIEW_DIR = [
+  HOME.position[0] - HOME.target[0],
+  HOME.position[1] - HOME.target[1],
+  HOME.position[2] - HOME.target[2],
+] as const;
+const VIEW_LEN = Math.hypot(...VIEW_DIR);
 const STATE = ILLUSTRATIVE_STATE;
 const ENTITIES = entitiesById(STATE);
 const EXCEPTIONS = exceptionOptions(STATE);
@@ -58,6 +67,9 @@ export const FacilityScene = ({
   const { graphics, canvasKey, onCreated } = useGraphicsContext();
 
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
+  const cameraGoal = useRef<CameraGoal | null>(null);
+  // Selections made in the canvas keep the camera still; others glide to the entity.
+  const selectedInCanvas = useRef(false);
 
   const meshes: MeshMode = !modelsOn
     ? "off"
@@ -70,6 +82,7 @@ export const FacilityScene = ({
   const travel = useRef({ x: 0, y: 0, max: 0 });
   const onPointerDown = (e: ReactPointerEvent) => {
     travel.current = { x: e.clientX, y: e.clientY, max: 0 };
+    cameraGoal.current = null;
   };
   const onPointerMove = (e: ReactPointerEvent) => {
     if (e.buttons === 0) return;
@@ -83,7 +96,10 @@ export const FacilityScene = ({
     () => ({
       onHover: setHovered,
       onSelect: (id: string | null) => {
-        if (travel.current.max <= CLICK_SLOP_PX) setSelected(id);
+        if (travel.current.max <= CLICK_SLOP_PX) {
+          selectedInCanvas.current = true;
+          setSelected(id);
+        }
       },
     }),
     [setSelected],
@@ -102,16 +118,20 @@ export const FacilityScene = ({
   }, [setSelected]);
 
   const resetCamera = useCallback(() => {
-    const c = controls.current;
-    if (!c) return;
-    // An undamped update applies and clears leftover orbit/pan inertia before the pose is set.
-    c.enableDamping = false;
-    c.update();
-    c.object.position.set(...HOME.position);
-    c.target.set(...HOME.target);
-    c.update();
-    c.enableDamping = true;
+    cameraGoal.current = goalFrom(HOME.position, HOME.target);
   }, []);
+
+  useEffect(() => {
+    const fromCanvas = selectedInCanvas.current;
+    selectedInCanvas.current = false;
+    const at = selected ? layout.get(selected) : undefined;
+    if (!at || fromCanvas) return;
+    const k = FOCUS_DISTANCE / VIEW_LEN;
+    cameraGoal.current = goalFrom(
+      [at.x + VIEW_DIR[0] * k, at.y + VIEW_DIR[1] * k, at.z + VIEW_DIR[2] * k],
+      [at.x, at.y, at.z],
+    );
+  }, [selected, layout]);
 
   const hoverEntity = hovered ? ENTITIES.get(hovered) : undefined;
   const hoverAt = hovered ? layout.get(hovered) : undefined;
@@ -164,6 +184,7 @@ export const FacilityScene = ({
           maxPolarAngle={Math.PI * 0.47}
           target={[...HOME.target]}
         />
+        <CameraRig controls={controls} goal={cameraGoal} />
       </Canvas>
       <SceneOverlay
         roof={roof}

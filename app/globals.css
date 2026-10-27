@@ -13,6 +13,43 @@
   --default-transition-duration: 200ms;
   --default-transition-timing-function: var(--ease-soft);
   --animate-rise: rise 240ms var(--ease-soft) both;
+  /* First-load sequence only: stagger with [animation-delay:…]. */
+  --animate-settle: settle 500ms var(--ease-soft) both;
+  --animate-arrive: arrive 600ms var(--ease-soft) both;
+  --animate-fade: fade 200ms var(--ease-soft) both;
+
+  @keyframes settle {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      filter: blur(4px);
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      filter: none;
+      transform: none;
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   @keyframes rise {
     from {
