@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SceneLoader } from "@/components/scene/scene-loader";
 import { useSimulation } from "@/lib/dashboard/use-simulation";
 import type { ExternalDisruptionConfig } from "@/lib/external/disruption-types";
@@ -61,6 +61,14 @@ export const DashboardLayout = () => {
     setActiveTab("evidence");
   }, []);
 
+  // Start from the OS preference; the toggle overrides it for this session.
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      "dark",
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
+  }, []);
+
   const handleToggleTheme = useCallback(() => {
     document.documentElement.classList.toggle("dark");
   }, []);
@@ -95,14 +103,16 @@ export const DashboardLayout = () => {
   );
 
   return (
-    <div className="flex h-dvh w-full flex-col gap-2 p-2 bg-zinc-100 text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50 font-sans antialiased overflow-hidden select-none">
+    <div className="flex min-h-dvh w-full flex-col gap-2 p-2 lg:h-dvh lg:overflow-hidden select-none">
       {/* Toast Notification */}
       {toastMessage && (
         <output
           aria-live="polite"
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-md bg-zinc-900/90 dark:bg-zinc-100/90 text-white dark:text-zinc-900 px-3 py-1.5 text-xs font-medium shadow-lg backdrop-blur-xs transition-all"
+          className="fixed top-4 left-1/2 z-50 -translate-x-1/2"
         >
-          {toastMessage}
+          <span className="block animate-rise rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
+            {toastMessage}
+          </span>
         </output>
       )}
 
@@ -116,8 +126,8 @@ export const DashboardLayout = () => {
       {/* Disclaimer Banner and Legend */}
       <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-1 text-[11px] text-amber-900 dark:text-amber-300">
         <span>
-          Live Simulation State: engine v{stateVersion} · DFW S1 physical
-          invariants enforced.
+          Prototype · engine state v{stateVersion} · scene and summary counts
+          are illustrative.
         </span>
         <span className="text-zinc-400">·</span>
         <span className="flex items-center gap-1">
@@ -171,7 +181,7 @@ export const DashboardLayout = () => {
       />
 
       {/* Main 3-Column Working Grid */}
-      <main className="grid min-h-0 flex-1 grid-cols-[auto_1fr_auto] gap-2 overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[auto_1fr_auto] lg:overflow-hidden">
         {/* Left: Facility & Capacity */}
         <FacilityPanel
           isOpen={leftOpen}
@@ -182,7 +192,7 @@ export const DashboardLayout = () => {
         />
 
         {/* Center: 3D Scene Viewport */}
-        <section className="relative min-h-0 flex-1 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs overflow-hidden">
+        <section className="relative order-first h-[60vh] min-h-0 overflow-hidden rounded-lg border border-zinc-200 bg-white lg:order-none lg:h-auto dark:border-zinc-800 dark:bg-zinc-900">
           <SceneLoader
             selectedId={selectedId}
             onSelectEntity={handleSelectEntity}

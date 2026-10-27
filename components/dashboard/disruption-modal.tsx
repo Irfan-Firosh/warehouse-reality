@@ -67,15 +67,14 @@ export const DisruptionModal = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="disruption-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4"
     >
-      <div className="w-full max-w-lg rounded-lg border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 space-y-4 max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-lg animate-rise rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 space-y-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
           <div className="flex items-center gap-2">
-            <span className="text-amber-500 font-bold">⚡</span>
             <h2 id="disruption-title" className="font-semibold text-sm">
-              Simulation Disruption Injector
+              Inject a disruption
             </h2>
           </div>
           <button
@@ -98,7 +97,7 @@ export const DisruptionModal = ({
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >
-            Preset Scenarios (H-1, H-2, H-3)
+            Preset scenarios
           </button>
           <button
             type="button"
@@ -114,7 +113,7 @@ export const DisruptionModal = ({
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
             }`}
           >
-            <span>External Incidents</span>
+            <span>External incidents</span>
             <span className="rounded bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 text-[9px] font-mono">
               Tavily
             </span>
@@ -138,7 +137,7 @@ export const DisruptionModal = ({
                     <span className="font-semibold text-amber-900 dark:text-amber-200">
                       Dock Door Closure (H-1)
                     </span>
-                    <ProvenanceBadge kind="hyp">injected</ProvenanceBadge>
+                    <ProvenanceBadge kind="hyp">demo scenario</ProvenanceBadge>
                   </div>
                   <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
                     Close dock door D-108 for 2 hours (14:00–16:00). Pauses
@@ -151,9 +150,9 @@ export const DisruptionModal = ({
                       onInject("H-1");
                       onClose();
                     }}
-                    className="w-full rounded bg-amber-600 py-1 text-xs font-medium text-white hover:bg-amber-700 transition-colors"
+                    className="w-full rounded-md bg-amber-600 py-1 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-amber-700 focus-visible:outline-2 focus-visible:outline-amber-500"
                   >
-                    Apply H-1 Disruption
+                    Apply H-1
                   </button>
                 </div>
 
@@ -163,7 +162,7 @@ export const DisruptionModal = ({
                     <span className="font-semibold">
                       Equipment Outage (H-2)
                     </span>
-                    <ProvenanceBadge kind="hyp">ready</ProvenanceBadge>
+                    <ProvenanceBadge kind="hyp">hypothetical</ProvenanceBadge>
                   </div>
                   <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
                     Declare forklift F-07 hydraulic fault. Releases active
@@ -175,9 +174,9 @@ export const DisruptionModal = ({
                       onInject("H-2");
                       onClose();
                     }}
-                    className="w-full rounded border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="w-full rounded-md border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                   >
-                    Apply H-2 Disruption
+                    Apply H-2
                   </button>
                 </div>
 
@@ -185,7 +184,7 @@ export const DisruptionModal = ({
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/40 text-xs">
                   <div className="flex justify-between items-baseline mb-1">
                     <span className="font-semibold">Driver Delay (H-3)</span>
-                    <ProvenanceBadge kind="hyp">ready</ProvenanceBadge>
+                    <ProvenanceBadge kind="hyp">hypothetical</ProvenanceBadge>
                   </div>
                   <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
                     Driver DRV-047 reports 45 min highway delay; triggers slot
@@ -197,9 +196,9 @@ export const DisruptionModal = ({
                       onInject("H-3");
                       onClose();
                     }}
-                    className="w-full rounded border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="w-full rounded-md border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                   >
-                    Apply H-3 Disruption
+                    Apply H-3
                   </button>
                 </div>
               </div>
@@ -226,9 +225,9 @@ export const DisruptionModal = ({
                   type="button"
                   disabled={isLoading}
                   onClick={handleFetchLiveIncidents}
-                  className="rounded bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white px-3 py-1 font-medium text-xs transition-colors shrink-0"
+                  className="rounded-md bg-sky-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-sky-500 disabled:opacity-50 shrink-0"
                 >
-                  {isLoading ? "Searching..." : "Search Web"}
+                  {isLoading ? "Searching…" : "Search news"}
                 </button>
               </div>
 
@@ -317,9 +316,9 @@ export const DisruptionModal = ({
                           });
                           onClose();
                         }}
-                        className="rounded bg-sky-600 py-1 px-2.5 text-[11px] font-medium text-white hover:bg-sky-700 transition-colors"
+                        className="rounded-md bg-sky-600 py-1 px-2.5 text-[11px] font-medium text-white transition hover:-translate-y-px hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-sky-500"
                       >
-                        Inject as Hypothesis
+                        Inject as hypothesis
                       </button>
                     </div>
                   </div>
@@ -327,7 +326,7 @@ export const DisruptionModal = ({
 
                 {liveIncidents.length === 0 && !isLoading && (
                   <p className="text-center py-4 text-zinc-400 text-xs">
-                    Click "Search Web" to search recent news with Tavily.
+                    Search recent news with Tavily to list incidents.
                   </p>
                 )}
               </div>

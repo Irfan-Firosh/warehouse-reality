@@ -68,18 +68,23 @@ export const STATUS = {
 } as const;
 export const WHITE = 0xffffff;
 
-const QUERY = "(prefers-color-scheme: dark)";
+const isDark = (): boolean =>
+  document.documentElement.classList.contains("dark");
+
 const subscribe = (onChange: () => void): (() => void) => {
-  const mq = window.matchMedia(QUERY);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  return () => observer.disconnect();
 };
 
-/** Follows the OS color scheme; the scene is client-only, so no server snapshot is needed beyond a default. */
+/** Follows the `.dark` class on <html>, which the dashboard sets from the OS preference and the theme toggle. */
 export const usePalette = (): ScenePalette =>
   useSyncExternalStore(
     subscribe,
-    () => (window.matchMedia(QUERY).matches ? DARK : LIGHT),
+    () => (isDark() ? DARK : LIGHT),
     () => DARK,
   );
 

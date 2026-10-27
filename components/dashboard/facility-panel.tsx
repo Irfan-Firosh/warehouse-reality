@@ -22,7 +22,7 @@ export const FacilityPanel = ({
 }: FacilityPanelProps) => {
   if (!isOpen) {
     return (
-      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs">
+      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <button
           type="button"
           onClick={onToggle}
@@ -39,7 +39,7 @@ export const FacilityPanel = ({
   }
 
   return (
-    <aside className="w-72 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs overflow-hidden">
+    <aside className="w-full max-h-[70vh] lg:max-h-none lg:w-72 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden">
       <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20">
         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Facility Resources

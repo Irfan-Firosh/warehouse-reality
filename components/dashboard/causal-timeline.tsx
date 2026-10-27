@@ -34,7 +34,7 @@ export const CausalTimeline = ({
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <footer className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 px-3 py-2 text-zinc-950 dark:text-zinc-50 shadow-xs">
+    <footer className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 px-3 py-2 text-zinc-950 dark:text-zinc-50">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"

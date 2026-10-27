@@ -71,12 +71,19 @@ export const AgentTab = ({
               </button>
             </div>
           </div>
-          <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-            LLM runtime
-          </span>
+          {lastDeliberation?.agentId === activeAgentId ? (
+            <span
+              className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+              title={`Model: ${lastDeliberation.modelUsed}`}
+            >
+              {lastDeliberation.isMock ? "offline fallback" : "NVIDIA model"}
+            </span>
+          ) : (
+            <ProvenanceBadge kind="unk">not run</ProvenanceBadge>
+          )}
         </div>
         <div className="text-zinc-500 mt-1 text-[11px]">
-          Decision owner: Nebius / NVIDIA model · Strict tool contracts
+          Proposals reach the engine only through validated tool calls.
         </div>
 
         {/* Deliberate Action Button */}
@@ -86,15 +93,15 @@ export const AgentTab = ({
               type="button"
               disabled={isDeliberating}
               onClick={() => onTriggerDeliberation(activeAgentId)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:-translate-y-px hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500 disabled:translate-y-0 disabled:opacity-50"
             >
               {isDeliberating ? (
                 <>
                   <span className="size-2 animate-spin rounded-full border border-white border-t-transparent" />
-                  <span>Deliberating with NVIDIA model...</span>
+                  <span>Deliberating…</span>
                 </>
               ) : (
-                <span>✦ Run Agent Deliberation</span>
+                <span>Run deliberation</span>
               )}
             </button>
           </div>
@@ -105,13 +112,13 @@ export const AgentTab = ({
       {lastDeliberation && (
         <section className="rounded-md border border-blue-500/40 bg-blue-50/30 p-2.5 dark:border-blue-500/30 dark:bg-blue-950/20">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-800 dark:text-blue-300 mb-1 flex items-center justify-between">
-            <span>Model Reasoning</span>
-            <span className="font-mono text-[10px] text-zinc-400">
-              {lastDeliberation.agentId}
+            <span>Agent reasoning</span>
+            <span className="font-mono text-[10px] font-normal normal-case tracking-normal text-zinc-500">
+              {lastDeliberation.agentId} · {lastDeliberation.modelUsed}
             </span>
           </div>
-          <p className="text-zinc-800 dark:text-zinc-200 text-xs italic leading-relaxed">
-            "{lastDeliberation.thought}"
+          <p className="text-zinc-800 dark:text-zinc-200 text-xs leading-relaxed">
+            {lastDeliberation.thought}
           </p>
           {lastDeliberation.toolCall && (
             <div className="mt-1.5 pt-1.5 border-t border-blue-200 dark:border-blue-900/50 flex items-center justify-between font-mono text-[11px]">
@@ -119,7 +126,7 @@ export const AgentTab = ({
                 Tool: {lastDeliberation.toolCall.tool}
               </span>
               {lastDeliberation.toolResult?.success ? (
-                <span className="text-emerald-600 font-medium">Accepted ✓</span>
+                <span className="text-emerald-600 font-medium">Accepted</span>
               ) : lastDeliberation.toolResult ? (
                 <span
                   className="text-red-600 dark:text-red-400 font-medium"
@@ -138,7 +145,7 @@ export const AgentTab = ({
       {/* Local Observations */}
       <section>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1 flex items-center justify-between">
-          <span>Local Observations & Memory</span>
+          <span>Observations and memory</span>
           <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
         </div>
         <ul className="space-y-1 text-zinc-700 dark:text-zinc-300 text-xs">
@@ -184,7 +191,7 @@ export const AgentTab = ({
       {/* Agent Inbox */}
       <section>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">
-          Agent Inbox (Offers & Messages)
+          Inbox
         </div>
         <div className="space-y-1.5">
           {currentAgent && currentAgent.inbox.length > 0 ? (
@@ -201,14 +208,23 @@ export const AgentTab = ({
                     {msg.id}
                   </span>
                 </div>
-                <div className="text-zinc-700 dark:text-zinc-300 mt-0.5">
-                  {JSON.stringify(msg.payload)}
-                </div>
+                <dl className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-2 text-zinc-700 dark:text-zinc-300">
+                  {Object.entries(msg.payload).map(([key, value]) => (
+                    <div key={key} className="contents">
+                      <dt className="text-zinc-500">{key}</dt>
+                      <dd className="font-mono text-[11px]">
+                        {typeof value === "string"
+                          ? value
+                          : JSON.stringify(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             ))
           ) : (
-            <div className="rounded-md border border-zinc-200 p-2 text-zinc-400 italic dark:border-zinc-800">
-              No pending messages in inbox
+            <div className="rounded-md border border-zinc-200 p-2 text-zinc-500 dark:border-zinc-800">
+              No pending messages.
             </div>
           )}
         </div>
@@ -217,7 +233,7 @@ export const AgentTab = ({
       {/* Obligations */}
       <section>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">
-          Current Obligations
+          Obligations
         </div>
         <button
           type="button"
