@@ -2,6 +2,7 @@
   "name": "warehouse-sim",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,6 +16,7 @@
   "dependencies": {
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
+    "@tavily/core": "^0.7.14",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -32,6 +34,5 @@
     "typescript": "^5",
     "vitest": "^3.2.7"
   },
-  "packageManager": "pnpm@12.11.2",
-  "license": "MIT"
+  "packageManager": "pnpm@12.11.2"
 }

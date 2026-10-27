@@ -118,7 +118,18 @@ export const AgentTab = ({
               <span className="text-blue-700 dark:text-blue-300 font-semibold">
                 Tool: {lastDeliberation.toolCall.tool}
               </span>
-              <span className="text-emerald-600 font-medium">Validated ✓</span>
+              {lastDeliberation.toolResult?.success ? (
+                <span className="text-emerald-600 font-medium">Accepted ✓</span>
+              ) : lastDeliberation.toolResult ? (
+                <span
+                  className="text-red-600 dark:text-red-400 font-medium"
+                  title={lastDeliberation.toolResult.message}
+                >
+                  Rejected: {lastDeliberation.toolResult.reasonCode ?? "error"}
+                </span>
+              ) : (
+                <span className="text-zinc-500 font-medium">Not executed</span>
+              )}
             </div>
           )}
         </section>

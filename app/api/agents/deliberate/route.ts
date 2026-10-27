@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { AgentRunner } from "@/lib/agents/agent-runner";
 import { SimulationEngine } from "@/lib/engine/engine";
+import { externalDisruptionTypeSchema } from "@/lib/external/disruption-types";
 
 // Maintain a shared server-side simulation engine instance for the API session
 const engine = new SimulationEngine();
@@ -39,7 +40,7 @@ const DeliberationRequestSchema = z.object({
   disruption: z
     .object({
       disruptionId: z.string(),
-      type: z.enum(["dock_closure", "equipment_failure"]),
+      type: externalDisruptionTypeSchema,
       targetId: z.string(),
     })
     .optional(),

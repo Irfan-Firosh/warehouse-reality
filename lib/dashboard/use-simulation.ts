@@ -10,6 +10,7 @@ import { AgentRunner } from "@/lib/agents/agent-runner";
 import type { AgentState, DeliberationResult } from "@/lib/agents/types";
 import { SimulationEngine } from "@/lib/engine/engine";
 import type { CommitmentEntity } from "@/lib/engine/types";
+import type { ExternalDisruptionConfig } from "@/lib/external/disruption-types";
 import type { DashboardCounts, TimelineEvent } from "@/types/dashboard";
 import {
   calculateDashboardCounts as getStaticCounts,
@@ -35,7 +36,10 @@ export interface SimulationHookState {
   setSpeed: (speed: 1 | 4 | 16) => void;
   setActiveAgentId: (id: string) => void;
   nextStep: () => Promise<void>;
-  injectDisruption: (disruptionId: string) => Promise<void>;
+  injectDisruption: (
+    disruptionId: string,
+    externalConfig?: ExternalDisruptionConfig,
+  ) => Promise<void>;
   triggerAgentDeliberation: (
     agentId?: string,
     directive?: string,
@@ -175,7 +179,47 @@ export const useSimulation = (): SimulationHookState => {
   }, [activeAgentId, engine, triggerAgentDeliberation]);
 
   const injectDisruption = useCallback(
-    async (disruptionId: string) => {
+    async (disruptionId: string, externalConfig?: ExternalDisruptionConfig) => {
+      if (externalConfig) {
+        const result = engine.injectDisruption(
+          disruptionId,
+          externalConfig.type,
+          externalConfig.targetId,
+        );
+        if (!result.success) return;
+
+        const disEvent: TimelineEvent = {
+          id: `E-${Date.now().toString().slice(-4)}`,
+          time: formatSecondsToClock(engine.getLogicalTime()),
+          source:
+            externalConfig.source === "tavily"
+              ? `TAVILY ${disruptionId}`
+              : `SYNTHETIC ${disruptionId}`,
+          title: externalConfig.title,
+          type: "disruption",
+          tag:
+            externalConfig.source === "tavily"
+              ? "web-sourced hypothesis"
+              : "synthetic",
+        };
+
+        setTimelineEvents((prev) => [...prev, disEvent]);
+        refreshState();
+
+        const agentToTrigger =
+          externalConfig.type === "dock_closure"
+            ? "DOCK-C"
+            : externalConfig.type === "equipment_failure"
+              ? "SUP-1"
+              : "DRV-047";
+
+        await triggerAgentDeliberation(
+          agentToTrigger,
+          externalConfig.directive,
+        );
+        return;
+      }
+
       if (disruptionId === "H-1") {
         // Dock closure on D-108
         engine.injectDisruption("H-1", "dock_closure", "D-108");

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { SceneLoader } from "@/components/scene/scene-loader";
 import { useSimulation } from "@/lib/dashboard/use-simulation";
+import type { ExternalDisruptionConfig } from "@/lib/external/disruption-types";
 import type { TabKey } from "@/types/dashboard";
 import { CausalTimeline } from "./causal-timeline";
 import { DisruptionModal } from "./disruption-modal";
@@ -65,19 +66,28 @@ export const DashboardLayout = () => {
   }, []);
 
   const handleInjectDisruption = useCallback(
-    async (disruptionId: string) => {
+    async (disruptionId: string, externalConfig?: ExternalDisruptionConfig) => {
       showToast(
-        `Injected ${disruptionId} disruption into authoritative engine`,
+        externalConfig?.source === "fixture"
+          ? `Injected synthetic ${disruptionId} disruption into authoritative engine`
+          : `Injected ${disruptionId} disruption into authoritative engine`,
       );
-      await injectDisruption(disruptionId);
+      await injectDisruption(disruptionId, externalConfig);
 
-      if (disruptionId === "H-1") {
+      if (disruptionId === "H-1" || externalConfig?.targetId === "D-108") {
         handleSelectEntity("D-108");
         setActiveAgentId("DOCK-C");
         setActiveTab("agent");
-      } else if (disruptionId === "H-2") {
+      } else if (
+        disruptionId === "H-2" ||
+        externalConfig?.targetId === "F-07"
+      ) {
         handleSelectEntity("F-07");
         setActiveAgentId("SUP-1");
+        setActiveTab("agent");
+      } else if (externalConfig?.targetId === "DRV-047") {
+        handleSelectEntity("T-2291");
+        setActiveAgentId("DRV-047");
         setActiveTab("agent");
       }
     },
