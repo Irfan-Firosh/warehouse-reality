@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-27-hackathon-final-design.md` (read it first). The gap numbers below refer to `docs/architecture.md`.
 
+**Task status lives in Beads, not in this file's checkboxes.** See `docs/beads.md`. Each task's bead is listed in `docs/feature-split.md`; claim it before starting and close it once merged.
+
 ## Global Constraints
 
 - Deadline: Fri Oct 30, 10:00 PT. Internal freeze Thu Oct 29, 22:00 ET. Submit by Fri 09:00 PT.
