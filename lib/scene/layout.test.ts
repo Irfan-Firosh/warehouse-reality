@@ -7,7 +7,7 @@ import {
   MOVING_TRAILER,
   TARGET_DOOR,
 } from "./illustrative-state";
-import { buildLayout, doorSlot, stallSlot } from "./layout";
+import { buildLayout, doorSlot, stallSlot, trailerAtDoor } from "./layout";
 
 const state = ILLUSTRATIVE_STATE;
 const layout = buildLayout(state, [CLOSED_DOOR, TARGET_DOOR]);
@@ -85,6 +85,13 @@ describe("placement", () => {
       const forward = { x: Math.sin(tractor.rotY), z: Math.cos(tractor.rotY) };
       const away = { x: tractor.x - trailer.x, z: tractor.z - trailer.z };
       expect(forward.x * away.x + forward.z * away.z, t.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("gives trailers at either wall a rotY that is their nose heading, away from the wall", () => {
+    for (const index of [0, S1.dockDoors - 1]) {
+      const p = trailerAtDoor(index);
+      expect(Math.cos(p.rotY) * p.dir, `door ${index}`).toBeCloseTo(1, 9);
     }
   });
 

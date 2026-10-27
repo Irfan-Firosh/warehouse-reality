@@ -13,12 +13,14 @@ export interface Door {
   index: number;
   status: DoorStatus;
   trailer?: string;
+  /** Illustrative annotation after the status (e.g. a hypothetical window); never from the engine. */
+  note?: string;
 }
 export interface Ramp {
   id: string;
   kind: "ramp";
   index: number;
-  status: "free";
+  status: DoorStatus;
 }
 export interface Stall {
   id: string;
@@ -45,7 +47,9 @@ export interface Forklift {
   id: string;
   kind: "forklift";
   index: number;
-  status: "working" | "failed";
+  status: "working" | "idle" | "failed";
+  /** Illustrative annotation after the status; never from the engine. */
+  note?: string;
 }
 
 export type Entity = Door | Ramp | Stall | Trailer | Tractor | Forklift;

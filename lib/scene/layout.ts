@@ -15,12 +15,17 @@ import type { Placement, SceneState, Trailer } from "./types";
 const DOOR_GAP = 4;
 const HITCH_GAP = 1;
 const TRAILER_CLEARANCE = 1.5;
-const MOVE_LANE_Z = HALF_D + 70;
+/** The drive lane along the south court, between the dock aprons and the yard park. */
+export const MOVE_LANE_Z = HALF_D + 70;
 /** The gate queue lines up northward on an access road off the west end, facing the south court. */
 export const GATE_ROAD = { x: -HALF_L - 90, width: 40 } as const;
-const GATE_FRONT_Z = HALF_D + 40;
-const GATE_SPACING = 80;
-const YARD_PARK = { x0: HALF_L - 60, z: HALF_D + 120, spacing: 30 } as const;
+export const GATE_FRONT_Z = HALF_D + 40;
+export const GATE_SPACING = 80;
+export const YARD_PARK = {
+  x0: HALF_L - 60,
+  z: HALF_D + 120,
+  spacing: 30,
+} as const;
 const STALL_GAP = 2;
 const FORKLIFT_TURN = 1.3;
 const RAMP_SLOTS: readonly (readonly [number, number])[] = [
@@ -36,7 +41,8 @@ const TRAILER_SIZE = [TRAILER_W, TRAILER_H, TRAILER_L] as const;
 const TRACTOR_SIZE = [TRACTOR_W, TRACTOR_H, TRACTOR_L] as const;
 const TRAILER_Y = TRAILER_H / 2 + TRAILER_CLEARANCE;
 const TRACTOR_Y = TRACTOR_H / 2;
-const HITCH = TRAILER_L / 2 + TRACTOR_L / 2 + HITCH_GAP;
+/** Centre-to-centre distance from a trailer to the tractor pulling it. */
+export const HITCH = TRAILER_L / 2 + TRACTOR_L / 2 + HITCH_GAP;
 
 export interface DoorSlot {
   x: number;
@@ -67,24 +73,66 @@ export const stallSlot = (
   };
 };
 
+/** rotY is always the nose heading; models face +z at rotY 0. */
+const noseAway = (dir: number): number => (dir > 0 ? 0 : Math.PI);
+
+/** A trailer backed onto door `index`, nose (and tractor) pointing away from the wall. */
+export const trailerAtDoor = (index: number): Placement & { dir: -1 | 1 } => {
+  const p = doorSlot(index);
+  return {
+    x: p.x,
+    y: TRAILER_Y,
+    z: p.z + p.dir * (DOOR_GAP + TRAILER_L / 2),
+    rotY: noseAway(p.dir),
+    dir: p.dir,
+    size: TRAILER_SIZE,
+  };
+};
+
+/** A moving trailer's `from→to` doors, when both are door ids in `doors`. */
+export const doorPair = (
+  t: Trailer,
+  doors: Pick<ReadonlySet<string>, "has">,
+): readonly [string, string] | undefined => {
+  if (t.status !== "moving") return undefined;
+  const [from, to] = t.at.split("→");
+  return from && to && doors.has(from) && doors.has(to)
+    ? [from, to]
+    : undefined;
+};
+
+/** The first moving trailer's `from→to` doors, when both are door ids in this state. */
+export const movingPair = (
+  state: SceneState,
+): readonly [string, string] | undefined => {
+  const doors = new Set(state.doors.map((d) => d.id));
+  for (const t of state.trailers) {
+    const pair = doorPair(t, doors);
+    if (pair) return pair;
+  }
+  return undefined;
+};
+
+/** Halfway between two doors on the first door's drive lane, nose toward the second. */
+const betweenDoors = (from: number, to: number): Placement => {
+  const [a, b] = [doorSlot(from), doorSlot(to)];
+  return {
+    x: (a.x + b.x) / 2,
+    y: TRAILER_Y,
+    z: a.dir * MOVE_LANE_Z,
+    rotY: b.x >= a.x ? Math.PI / 2 : -Math.PI / 2,
+    size: TRAILER_SIZE,
+  };
+};
+
 const trailerPlacement = (
   t: Trailer,
   doorIndex: ReadonlyMap<string, number>,
   stallIndex: ReadonlyMap<string, number>,
   movingBetween: readonly [number, number],
-): Placement & { dir: number } => {
+): Placement => {
   const door = doorIndex.get(t.at);
-  if (door !== undefined) {
-    const p = doorSlot(door);
-    return {
-      x: p.x,
-      y: TRAILER_Y,
-      z: p.z + p.dir * (DOOR_GAP + TRAILER_L / 2),
-      rotY: 0,
-      dir: p.dir,
-      size: TRAILER_SIZE,
-    };
-  }
+  if (door !== undefined) return trailerAtDoor(door);
   const stall = stallIndex.get(t.at);
   if (stall !== undefined) {
     const s = stallSlot(stall);
@@ -92,35 +140,29 @@ const trailerPlacement = (
       x: s.x,
       y: TRAILER_Y,
       z: s.z,
-      rotY: 0,
-      dir: Math.sign(s.z),
+      rotY: noseAway(Math.sign(s.z)),
       size: TRAILER_SIZE,
     };
   }
   if (t.status === "moving") {
-    const [from, to] = movingBetween.map(doorSlot);
-    return {
-      x: (from.x + to.x) / 2,
-      y: TRAILER_Y,
-      z: MOVE_LANE_Z,
-      rotY: Math.PI / 2,
-      dir: 1,
-      size: TRAILER_SIZE,
-    };
+    const pair = doorPair(t, doorIndex);
+    const [from, to] = pair
+      ? pair.map((id) => doorIndex.get(id) ?? 0)
+      : movingBetween;
+    return betweenDoors(from, to);
   }
   return {
     x: GATE_ROAD.x,
     y: TRAILER_Y,
     z: GATE_FRONT_Z - (t.queueIndex ?? 0) * GATE_SPACING,
     rotY: 0,
-    dir: 1,
     size: TRAILER_SIZE,
   };
 };
 
-/** Tractors face away from the trailer they pull. */
+/** Tractors sit ahead of the trailer they pull, along its nose. */
 const tractorPlacement = (
-  trailer: (Placement & { dir: number }) | undefined,
+  trailer: Placement | undefined,
   parkIndex: number,
 ): Placement => {
   if (!trailer) {
@@ -132,21 +174,11 @@ const tractorPlacement = (
       size: TRACTOR_SIZE,
     };
   }
-  if (trailer.rotY === 0) {
-    const z = trailer.z + trailer.dir * HITCH;
-    return {
-      x: trailer.x,
-      y: TRACTOR_Y,
-      z,
-      rotY: trailer.dir > 0 ? 0 : Math.PI,
-      size: TRACTOR_SIZE,
-    };
-  }
   return {
-    x: trailer.x + HITCH,
+    x: trailer.x + Math.sin(trailer.rotY) * HITCH,
     y: TRACTOR_Y,
-    z: trailer.z,
-    rotY: Math.PI / 2,
+    z: trailer.z + Math.cos(trailer.rotY) * HITCH,
+    rotY: trailer.rotY,
     size: TRACTOR_SIZE,
   };
 };

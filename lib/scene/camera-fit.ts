@@ -183,3 +183,31 @@ export const fitCamera = (
     ],
   };
 };
+
+/** Chase-camera defaults: lower than the miniature view so the truck reads as a subject. */
+export const CHASE_DISTANCE = 250;
+export const CHASE_PITCH = DEG * 35;
+
+/** A camera behind a vehicle's nose, looking down at it at `pitch`, `distance` ft away. */
+export const chasePose = (
+  target: Placement,
+  distance: number = CHASE_DISTANCE,
+  pitch: number = CHASE_PITCH,
+): CameraPose => {
+  const back = distance * Math.cos(pitch);
+  return {
+    position: [
+      target.x - Math.sin(target.rotY) * back,
+      target.y + distance * Math.sin(pitch),
+      target.z - Math.cos(target.rotY) * back,
+    ],
+    target: [target.x, target.y, target.z],
+  };
+};
+
+/** Straight down (just shy of 90° so the orbit controls keep a stable up vector). */
+export const TOP_VIEW: ViewAngles = {
+  pitch: DEG * 89,
+  azimuth: 0,
+  fovY: DEG * 28,
+};

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   type Bounds,
   type CameraPose,
+  CHASE_DISTANCE,
+  CHASE_PITCH,
+  chasePose,
   EVEN_INSETS,
   fitCamera,
   layoutBounds,
@@ -150,5 +153,36 @@ describe("layoutBounds", () => {
 
   it("returns the site itself when nothing is placed", () => {
     expect(layoutBounds([])).toEqual(SITE_BOUNDS);
+  });
+});
+
+describe("chasePose", () => {
+  const truck = {
+    x: 100,
+    y: 6,
+    z: -40,
+    rotY: Math.PI / 2,
+    size: [8.5, 11, 20] as const,
+  };
+
+  it("sits 250 ft away at a 35° pitch, looking at the truck", () => {
+    const { position, target } = chasePose(truck);
+    expect(target).toEqual([truck.x, truck.y, truck.z]);
+    const d = [
+      position[0] - target[0],
+      position[1] - target[1],
+      position[2] - target[2],
+    ];
+    expect(Math.hypot(...d)).toBeCloseTo(CHASE_DISTANCE, 6);
+    const pitch = Math.atan2(d[1], Math.hypot(d[0], d[2]));
+    expect(pitch).toBeCloseTo(CHASE_PITCH, 6);
+    expect(CHASE_PITCH).toBeCloseTo((35 * Math.PI) / 180, 9);
+  });
+
+  it("sits behind the truck's nose", () => {
+    const { position } = chasePose(truck);
+    // rotY π/2 faces +x, so the camera is on the -x side.
+    expect(position[0]).toBeLessThan(truck.x);
+    expect(position[2]).toBeCloseTo(truck.z, 6);
   });
 });
