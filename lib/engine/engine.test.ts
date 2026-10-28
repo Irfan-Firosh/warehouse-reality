@@ -312,4 +312,70 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
       expect(engine.getDock("D-030")?.occupiedTrailerId).toBeUndefined();
     });
   });
+
+  describe("Engine clock and full checkpoints", () => {
+    const sched = (e: SimulationEngine, id: string, t: number) =>
+      e.scheduleEvent({
+        id,
+        logicalTime: t,
+        type: "TEST",
+        affectedIds: [],
+        stateVersion: 0,
+      });
+
+    it("advanceUntil consumes queued events in time order and never moves time backwards", () => {
+      sched(engine, "E-LATE", 50700);
+      sched(engine, "E-EARLY", 50500);
+      sched(engine, "E-BEYOND", 51000);
+
+      const consumed = engine.advanceUntil(50800);
+      expect(consumed.map((e) => e.id)).toEqual(["E-EARLY", "E-LATE"]);
+      expect(engine.getLogicalTime()).toBe(50800);
+
+      // Earlier target must not rewind time or consume anything
+      expect(engine.advanceUntil(50600)).toEqual([]);
+      expect(engine.getLogicalTime()).toBe(50800);
+
+      // The beyond-target event is still queued
+      expect(engine.advanceUntil(51000).map((e) => e.id)).toEqual(["E-BEYOND"]);
+    });
+
+    it("advanceUntil with an empty queue still sets logicalTime", () => {
+      expect(engine.advanceUntil(51234)).toEqual([]);
+      expect(engine.getLogicalTime()).toBe(51234);
+    });
+
+    it("restore(checkpoint) then the same commit requestId returns the stored result", () => {
+      engine.propose({
+        id: "C-RESTORE",
+        task: "Restore Idempotency",
+        participants: [{ agentId: "DRV-01", role: "driver" }],
+        requiredResources: [
+          {
+            resourceId: "D-020",
+            type: "dock",
+            startWindow: 51000,
+            endWindow: 52000,
+          },
+        ],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-01", "C-RESTORE", engine.getStateVersion());
+      const first = engine.commit("C-RESTORE", "REQ-RESTORE");
+      expect(first.success).toBe(true);
+      sched(engine, "E-QUEUED", 60000);
+
+      const checkpoint = engine.createCheckpoint();
+      expect(checkpoint.sequence).toBeGreaterThan(0);
+      expect(checkpoint.queue.map((e) => e.id)).toEqual(["E-QUEUED"]);
+
+      const fresh = new SimulationEngine({ startTime: 50400 });
+      fresh.restoreCheckpoint(checkpoint);
+      const versionAfterRestore = fresh.getStateVersion();
+      const second = fresh.commit("C-RESTORE", "REQ-RESTORE");
+      expect(second).toEqual(first);
+      expect(fresh.getStateVersion()).toBe(versionAfterRestore);
+      expect(fresh.advanceUntil(60000).map((e) => e.id)).toEqual(["E-QUEUED"]);
+    });
+  });
 });
