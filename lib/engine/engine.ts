@@ -6,9 +6,11 @@
 import {
   type CommitmentProposal,
   acceptOffer as engineAcceptOffer,
+  cancelCommitment as engineCancelCommitment,
   commitAllocation as engineCommitAllocation,
   proposeCommitment as engineProposeCommitment,
   expireStaleOffers,
+  isOpenCommitment,
 } from "./commitments";
 import {
   checkCargoTransferConservation,
@@ -238,6 +240,21 @@ export class SimulationEngine {
     );
   }
 
+  public cancel(
+    commitmentId: EntityId,
+    requestId: string,
+    reason: string,
+  ): ToolResult {
+    return engineCancelCommitment(
+      commitmentId,
+      requestId,
+      reason,
+      this.processedRequests,
+      this.state,
+      (e) => this.emitEvent(e),
+    );
+  }
+
   // --- Physical Movement and Service Actions ---
 
   /**
@@ -378,6 +395,12 @@ export class SimulationEngine {
     // Conserve cargo quantity
     cargo.quantity -= quantity;
 
+    // First transfer moves the owning commitment into execution
+    const owner = trailer.assignedCommitmentId
+      ? this.state.commitments.get(trailer.assignedCommitmentId)
+      : undefined;
+    if (owner?.status === "committed") owner.status = "executing";
+
     const shipment = this.state.shipments.get(shipmentId);
     if (shipment) {
       shipment.transferredQuantity += quantity;
@@ -488,7 +511,7 @@ export class SimulationEngine {
   // --- Scoped Agent Observations (PRD §8.1) ---
 
   public observe(
-    role: "driver" | "dock_lead" | "yard_controller",
+    role: "driver" | "dock_lead" | "yard_controller" | "supervisor",
     agentEntityId: EntityId,
   ): Record<string, unknown> {
     const time = this.state.logicalTime;
@@ -537,6 +560,24 @@ export class SimulationEngine {
         role: "yard_controller",
         stalls: stallStatuses,
         tractors: Array.from(this.state.tractors.values()),
+      };
+    }
+
+    if (role === "supervisor") {
+      // Supervisor observes open commitments and the most recent events
+      return {
+        time,
+        version,
+        role: "supervisor",
+        openCommitments: Array.from(this.state.commitments.values())
+          .filter(isOpenCommitment)
+          .map((c) => ({
+            id: c.id,
+            task: c.task,
+            status: c.status,
+            participants: c.participants.map((p) => p.agentId),
+          })),
+        recentEvents: this.eventLog.slice(-10),
       };
     }
 
