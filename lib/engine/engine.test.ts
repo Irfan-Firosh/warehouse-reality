@@ -529,4 +529,97 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
       expect(recent.at(-1)?.id).toBe(engine.getEventLog().at(-1)?.id);
     });
   });
+
+  describe("Booking windows (synthetic fixtures)", () => {
+    const book = (
+      id: string,
+      resourceId: string,
+      type: "dock" | "tractor",
+      startWindow: number,
+      endWindow: number,
+    ) => {
+      engine.propose({
+        id,
+        task: "Synthetic windowed booking",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [{ resourceId, type, startWindow, endWindow }],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", id, engine.getStateVersion());
+      return engine.commit(id, `REQ-${id}`);
+    };
+
+    it("books one dock for two different hours", () => {
+      expect(book("C-W1", "D-112", "dock", 51000, 52000).success).toBe(true);
+      expect(book("C-W2", "D-112", "dock", 54000, 55000).success).toBe(true);
+      expect(engine.getCommitment("C-W2")?.status).toBe("committed");
+    });
+
+    it("treats back-to-back windows as not overlapping", () => {
+      expect(book("C-W1", "TR-SYN-01", "tractor", 51000, 52000).success).toBe(
+        true,
+      );
+      expect(book("C-W2", "TR-SYN-01", "tractor", 52000, 53000).success).toBe(
+        true,
+      );
+    });
+
+    it("rejects an overlapping window with RESOURCE_UNAVAILABLE", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      const res = book("C-W2", "D-112", "dock", 51900, 53000);
+      expect(res.success).toBe(false);
+      expect(res.reasonCode).toBe("RESOURCE_UNAVAILABLE");
+      expect(res.message).toContain("C-W1");
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W1");
+    });
+
+    it("a cancelled booking no longer blocks its window", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      engine.cancel("C-W1", "REQ-CANCEL-W1", "plan changed");
+      expect(book("C-W2", "D-112", "dock", 51000, 52000).success).toBe(true);
+    });
+
+    it("cancelling the current holder passes the dock to the next booking", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      book("C-W2", "D-112", "dock", 54000, 55000);
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W1");
+
+      const res = engine.cancel("C-W1", "REQ-CANCEL-W1", "plan changed");
+      expect(res.success).toBe(true);
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W2");
+
+      // The later booking still blocks its own window.
+      const clash = book("C-W3", "D-112", "dock", 54500, 56000);
+      expect(clash.reasonCode).toBe("RESOURCE_UNAVAILABLE");
+    });
+
+    it("a holder pointer with no known commitment blocks every window", () => {
+      engine.addTrailer({
+        id: "T-SYN-HELD",
+        location: { kind: "stall", stallId: "P-001" },
+        cargo: [],
+        doorOpen: false,
+        status: "parked",
+        assignedCommitmentId: "C-UNKNOWN",
+      });
+      engine.propose({
+        id: "C-W4",
+        task: "Synthetic windowed booking",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [
+          {
+            resourceId: "T-SYN-HELD",
+            type: "trailer",
+            startWindow: 60000,
+            endWindow: 61000,
+          },
+        ],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", "C-W4", engine.getStateVersion());
+      expect(engine.commit("C-W4", "REQ-C-W4").reasonCode).toBe(
+        "RESOURCE_UNAVAILABLE",
+      );
+    });
+  });
 });

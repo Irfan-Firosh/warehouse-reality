@@ -4,6 +4,7 @@
  */
 
 import type {
+  CommitmentEntity,
   EngineState,
   EntityId,
   PhysicalLocation,
@@ -133,6 +134,73 @@ export const checkTractorCoupling = (
   return { ok: true };
 };
 
+const HOLDING_STATUSES: readonly CommitmentEntity["status"][] = [
+  "committed",
+  "executing",
+];
+
+/** Half-open windows [start, end): back-to-back bookings do not overlap. */
+export const windowsOverlap = (
+  a: ResourceReservation,
+  b: ResourceReservation,
+): boolean => a.startWindow < b.endWindow && b.startWindow < a.endWindow;
+
+/**
+ * The committed holder of `res.resourceId` whose window overlaps `res`, if any.
+ * A pointer to a commitment the engine does not know has no known window, so it
+ * is treated as overlapping.
+ */
+const findOverlappingHolder = (
+  res: ResourceReservation,
+  pointer: EntityId | undefined,
+  state: EngineState,
+  excludingCommitmentId?: EntityId,
+): EntityId | undefined => {
+  if (
+    pointer &&
+    pointer !== excludingCommitmentId &&
+    !state.commitments.has(pointer)
+  ) {
+    return pointer;
+  }
+  for (const commitment of state.commitments.values()) {
+    if (commitment.id === excludingCommitmentId) continue;
+    if (!HOLDING_STATUSES.includes(commitment.status)) continue;
+    const overlaps = commitment.requiredResources.some(
+      (held) =>
+        held.type === res.type &&
+        held.resourceId === res.resourceId &&
+        windowsOverlap(held, res),
+    );
+    if (overlaps) return commitment.id;
+  }
+  return undefined;
+};
+
+/**
+ * The committed holder of a resource with the earliest window, used to pass
+ * the resource's holder pointer on when its current holder is cancelled.
+ */
+export const nextHolder = (
+  type: ResourceReservation["type"],
+  resourceId: EntityId,
+  state: EngineState,
+  excludingCommitmentId: EntityId,
+): EntityId | undefined => {
+  let best: { id: EntityId; start: number } | undefined;
+  for (const commitment of state.commitments.values()) {
+    if (commitment.id === excludingCommitmentId) continue;
+    if (!HOLDING_STATUSES.includes(commitment.status)) continue;
+    for (const held of commitment.requiredResources) {
+      if (held.type !== type || held.resourceId !== resourceId) continue;
+      if (!best || held.startWindow < best.start) {
+        best = { id: commitment.id, start: held.startWindow };
+      }
+    }
+  }
+  return best?.id;
+};
+
 /**
  * P04: Worker or handling equipment cannot serve overlapping tasks.
  * P03: Unavailable docks/equipment cannot accept new work.
@@ -159,13 +227,16 @@ export const checkReservationAvailability = (
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
-      if (
-        dock.reservedCommitmentId &&
-        dock.reservedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        dock.reservedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Dock ${res.resourceId} is already reserved by commitment ${dock.reservedCommitmentId}.`,
+          violation: `Dock ${res.resourceId} is already reserved by commitment ${holder}.`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
@@ -188,13 +259,16 @@ export const checkReservationAvailability = (
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
-      if (
-        eq.assignedCommitmentId &&
-        eq.assignedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        eq.assignedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Equipment ${res.resourceId} is already assigned to commitment ${eq.assignedCommitmentId} (P04 violation).`,
+          violation: `Equipment ${res.resourceId} is already assigned to commitment ${holder} (P04 violation).`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
@@ -217,13 +291,16 @@ export const checkReservationAvailability = (
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
-      if (
-        worker.assignedCommitmentId &&
-        worker.assignedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        worker.assignedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Worker ${res.resourceId} is already assigned to commitment ${worker.assignedCommitmentId} (P04 violation).`,
+          violation: `Worker ${res.resourceId} is already assigned to commitment ${holder} (P04 violation).`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
@@ -239,13 +316,16 @@ export const checkReservationAvailability = (
           reasonCode: "INVARIANT_VIOLATION",
         };
       }
-      if (
-        trailer.assignedCommitmentId &&
-        trailer.assignedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        trailer.assignedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Trailer ${res.resourceId} is already committed to ${trailer.assignedCommitmentId}.`,
+          violation: `Trailer ${res.resourceId} is already committed to ${holder}.`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
@@ -261,13 +341,16 @@ export const checkReservationAvailability = (
           reasonCode: "INVARIANT_VIOLATION",
         };
       }
-      if (
-        tractor.assignedCommitmentId &&
-        tractor.assignedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        tractor.assignedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Tractor ${res.resourceId} is already committed to ${tractor.assignedCommitmentId}.`,
+          violation: `Tractor ${res.resourceId} is already committed to ${holder}.`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
@@ -283,13 +366,16 @@ export const checkReservationAvailability = (
           reasonCode: "INVARIANT_VIOLATION",
         };
       }
-      if (
-        stall.reservedCommitmentId &&
-        stall.reservedCommitmentId !== excludingCommitmentId
-      ) {
+      const holder = findOverlappingHolder(
+        res,
+        stall.reservedCommitmentId,
+        state,
+        excludingCommitmentId,
+      );
+      if (holder) {
         return {
           ok: false,
-          violation: `Stall ${res.resourceId} is already reserved by ${stall.reservedCommitmentId}.`,
+          violation: `Stall ${res.resourceId} is already reserved by ${holder}.`,
           reasonCode: "RESOURCE_UNAVAILABLE",
         };
       }
