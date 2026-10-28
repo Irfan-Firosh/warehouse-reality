@@ -32,6 +32,7 @@ interface SceneOverlayProps {
   graphicsLost: boolean;
   exceptions: readonly ExceptionOption[];
   selected: Entity | undefined;
+  ambient: boolean;
   onSelect: (id: string | null) => void;
   onToggleRoof: () => void;
   onToggleMeshes: () => void;
@@ -63,7 +64,12 @@ const LOST =
   "Graphics stopped (WebGL context lost), so the 3D view is paused. It restarts if the browser restores graphics; otherwise reload the page.";
 
 /** Required labels (schematic layout, illustrative state, model credits) in one chip; details open on demand. */
-const ProvenanceChip = ({ models }: { models: boolean }) => (
+interface ProvenanceChipProps {
+  models: boolean;
+  ambient: boolean;
+}
+
+const ProvenanceChip = ({ models, ambient }: ProvenanceChipProps) => (
   <details className={`${PILL} group max-w-full text-[11px]`}>
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-1.5 px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
       <span className="font-mono uppercase tracking-wider text-amber-300">
@@ -71,6 +77,12 @@ const ProvenanceChip = ({ models }: { models: boolean }) => (
       </span>
       <span className="text-zinc-500">·</span>
       <span className="text-sky-200">Illustrative state</span>
+      {ambient && (
+        <>
+          <span className="text-zinc-500">·</span>
+          <span className="text-sky-200">Ambient motion: illustrative</span>
+        </>
+      )}
       <span className="text-zinc-500">·</span>
       <span className="text-zinc-300 group-open:text-white">
         Details & credits
@@ -82,6 +94,12 @@ const ProvenanceChip = ({ models }: { models: boolean }) => (
         I · 182 doors · 4 ramps · 235 trailer spaces (S1).
       </p>
       <p>Illustrative run state · not facility data or results.</p>
+      {ambient && (
+        <p>
+          Ambient motion is decoration: trucks and forklifts move on a display
+          clock, not the engine, and their pace means nothing.
+        </p>
+      )}
       <p className="[&_a]:underline">
         {models ? "Models: " : "Models (off): "}
         <a
@@ -116,6 +134,7 @@ export const SceneOverlay = ({
   graphicsLost,
   exceptions,
   selected,
+  ambient,
   onSelect,
   onToggleRoof,
   onToggleMeshes,
@@ -125,7 +144,7 @@ export const SceneOverlay = ({
   // One wrapping row, so the required labels never sit under the controls;
   // above the drawers so a tall wrapped row stays visible.
   <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex flex-wrap-reverse items-end justify-between gap-1.5">
-    <ProvenanceChip models={meshes === "models"} />
+    <ProvenanceChip models={meshes === "models"} ambient={ambient} />
     <div className="ml-auto flex max-w-full flex-wrap-reverse items-end justify-end gap-1.5">
       <div
         aria-live="polite"

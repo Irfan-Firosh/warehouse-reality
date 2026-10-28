@@ -87,6 +87,7 @@ export const DashboardLayout = () => {
         <SceneLoader
           selectedId={selectedId}
           onSelectEntity={handleSelectEntity}
+          speed={speed}
         />
       </section>
 

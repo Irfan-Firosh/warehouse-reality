@@ -1,9 +1,10 @@
 "use client";
 
-import type { ThreeEvent } from "@react-three/fiber";
-import { useLayoutEffect, useRef } from "react";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { type RefObject, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { ModelPart } from "@/lib/scene/fit-model";
+import type { Placement } from "@/lib/scene/types";
 import { WHITE } from "./palette";
 
 export interface InstanceItem {
@@ -20,19 +21,33 @@ export interface PickHandlers {
   onSelect: (id: string | null) => void;
 }
 
+/** Items whose ids are in `ids` follow their pose in `poses` whenever `version` changes. */
+export interface LiveInstances<T extends InstanceItem> {
+  poses: RefObject<ReadonlyMap<string, Placement>>;
+  version: RefObject<number>;
+  ids: ReadonlySet<string>;
+  /** The instance transform for an item drawn at `pose`. */
+  toItem: (pose: Placement, item: T) => InstanceItem;
+}
+
 interface InstancedPartsProps<T extends InstanceItem> {
   parts: readonly ModelPart[];
   items: readonly T[];
   colorOf: (item: T) => number;
   pick?: PickHandlers;
+  live?: LiveInstances<T>;
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
 const ONE = new THREE.Vector3(1, 1, 1);
+// Scratch objects for composing matrices without allocating three.js objects per instance.
+const AT = new THREE.Vector3();
+const TURN = new THREE.Quaternion();
+const MATRIX = new THREE.Matrix4();
 const matrixOf = (it: InstanceItem): THREE.Matrix4 =>
-  new THREE.Matrix4().compose(
-    new THREE.Vector3(it.x, it.y, it.z),
-    new THREE.Quaternion().setFromAxisAngle(UP, it.rotY),
+  MATRIX.compose(
+    AT.set(it.x, it.y, it.z),
+    TURN.setFromAxisAngle(UP, it.rotY),
     ONE,
   );
 
@@ -42,8 +57,18 @@ export const InstancedParts = <T extends InstanceItem>({
   items,
   colorOf,
   pick,
+  live,
 }: InstancedPartsProps<T>) => {
   const meshes = useRef<(THREE.InstancedMesh | null)[]>([]);
+  /** The live-pose version last copied into the instance matrices; -1 forces a copy. */
+  const applied = useRef(-1);
+  const moving = useMemo(
+    () =>
+      live
+        ? items.flatMap((it, k) => (it.id && live.ids.has(it.id) ? [k] : []))
+        : [],
+    [items, live],
+  );
 
   useLayoutEffect(() => {
     for (const i of parts.keys()) {
@@ -53,7 +78,28 @@ export const InstancedParts = <T extends InstanceItem>({
       mesh.instanceMatrix.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
+    // The rest poses just overwrote any moved instances; copy the live ones again next frame.
+    applied.current = -1;
   }, [parts, items]);
+
+  useFrame(() => {
+    if (!live || moving.length === 0) return;
+    if (applied.current === live.version.current) return;
+    applied.current = live.version.current;
+    const shown = meshes.current.filter((m) => m !== null);
+    for (const k of moving) {
+      const item = items[k];
+      const pose = item.id ? live.poses.current.get(item.id) : undefined;
+      if (!pose) continue;
+      const matrix = matrixOf(live.toItem(pose, item));
+      for (const mesh of shown) mesh.setMatrixAt(k, matrix);
+    }
+    for (const mesh of shown) {
+      mesh.instanceMatrix.needsUpdate = true;
+      // Picking and culling test the bounding sphere first, so it must cover the moved instances.
+      mesh.computeBoundingSphere();
+    }
+  });
 
   useLayoutEffect(() => {
     const c = new THREE.Color();

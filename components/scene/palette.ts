@@ -109,7 +109,7 @@ export const statusColor = (e: Entity, p: ScenePalette): number => {
     case "door":
       return e.status === "free" ? p.free : STATUS[e.status];
     case "ramp":
-      return p.free;
+      return e.status === "free" ? p.free : STATUS[e.status];
     case "stall":
       return e.trailer ? p.stallUsed : p.stallFree;
     case "trailer":

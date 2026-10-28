@@ -16,7 +16,7 @@ import {
   type TiltShiftEffect,
   ToneMappingMode,
 } from "postprocessing";
-import { useMemo, useRef } from "react";
+import { type RefObject, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Placement } from "@/lib/scene/types";
 
@@ -34,7 +34,11 @@ const EASE = 0.12;
 
 interface MiniatureLensProps {
   /** The entity the sharp band follows; the band widens and recentres when nothing is selected. */
-  focus: Placement | undefined;
+  focusId: string | null;
+  /** Where every entity is drawn this frame, so the band tracks moving trucks. */
+  poses: RefObject<ReadonlyMap<string, Placement>>;
+  /** Blur strength, 0 (none) to 1 (full), as the tilt-shift blend opacity. */
+  strength: number;
   saturation: number;
 }
 
@@ -43,13 +47,19 @@ interface MiniatureLensProps {
  * horizontal band that follows the subject, ambient occlusion, a saturated
  * grade and a vignette. Appearance only; it never feeds back into the scene.
  */
-export const MiniatureLens = ({ focus, saturation }: MiniatureLensProps) => {
+export const MiniatureLens = ({
+  focusId,
+  poses,
+  strength,
+  saturation,
+}: MiniatureLensProps) => {
   const tilt = useRef<TiltShiftEffect>(null);
   const at = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(({ camera }) => {
     const lens = tilt.current;
     if (!lens) return;
+    const focus = focusId ? poses.current.get(focusId) : undefined;
     const seen = focus && at.set(focus.x, focus.y, focus.z).project(camera);
     // Behind the camera or out of frame, the projection says nothing useful; rest instead.
     const onScreen =
@@ -63,6 +73,7 @@ export const MiniatureLens = ({ focus, saturation }: MiniatureLensProps) => {
     const area = onScreen ? BAND_FOCUS : BAND_REST;
     lens.offset += (offset - lens.offset) * EASE;
     lens.focusArea += (area - lens.focusArea) * EASE;
+    lens.blendMode.setOpacity(strength);
   });
 
   return (

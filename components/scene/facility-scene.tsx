@@ -9,6 +9,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  createAmbientMotion,
+  type DisplaySpeed,
+} from "@/lib/scene/ambient-motion";
 import { layoutBounds, MINIATURE_VIEW as VIEW } from "@/lib/scene/camera-fit";
 import { exceptionOptions } from "@/lib/scene/exceptions";
 import {
@@ -17,10 +21,12 @@ import {
   ILLUSTRATIVE_STATE,
   TARGET_DOOR,
 } from "@/lib/scene/illustrative-state";
-import { buildLayout } from "@/lib/scene/layout";
+import { buildLayout, movingPair } from "@/lib/scene/layout";
+import type { Placement, SceneState } from "@/lib/scene/types";
 import { CameraRig } from "./camera-rig";
 import { MiniatureLens } from "./miniature-lens";
 import { PRIMITIVE_KIT } from "./model-kit";
+import { type LivePoses, MotionClock, newDisplayClock } from "./motion-clock";
 import { usePalette } from "./palette";
 import { type MeshMode, SceneOverlay } from "./scene-overlay";
 import { SelectionMarks } from "./selection-marks";
@@ -34,25 +40,45 @@ const CLICK_SLOP_PX = 5;
 /** Sun from the south-west, high enough that dock faces stay lit. */
 const SUN_AT = [-700, 1500, 900] as const;
 const SHADOW_EXTENT = 1300;
-const STATE = ILLUSTRATIVE_STATE;
-const ENTITIES = entitiesById(STATE);
-const EXCEPTIONS = exceptionOptions(STATE);
 
 export interface FacilitySceneProps {
+  /** The run state to draw; the illustrative state only when there is no run. */
+  state?: SceneState;
   selectedId?: string | null;
   onSelectEntity?: (id: string | null) => void;
+  /** Illustrative decorative motion (labelled in the provenance chip). */
+  ambient?: boolean;
+  /** Display pacing for the motion; 4× and 16× step at 8 Hz. */
+  speed?: DisplaySpeed;
 }
 
 export const FacilityScene = ({
+  state = ILLUSTRATIVE_STATE,
   selectedId,
   onSelectEntity,
+  ambient = true,
+  speed = 1,
 }: FacilitySceneProps) => {
   const palette = usePalette();
+  const entities = useMemo(() => entitiesById(state), [state]);
+  const exceptions = useMemo(() => exceptionOptions(state), [state]);
   const layout = useMemo(
-    () => buildLayout(STATE, [CLOSED_DOOR, TARGET_DOOR]),
-    [],
+    () => buildLayout(state, movingPair(state) ?? [CLOSED_DOOR, TARGET_DOOR]),
+    [state],
   );
   const bounds = useMemo(() => layoutBounds(layout.values()), [layout]);
+  const motion = useMemo(
+    () => createAmbientMotion(state, layout),
+    [state, layout],
+  );
+  // Every entity's drawn pose; the motion clock rewrites the moving ones each frame.
+  const live = useMemo<{ current: LivePoses }>(
+    () => ({ current: new Map<string, Placement>(layout) }),
+    [layout],
+  );
+  const poseVersion = useRef(0);
+  // Outside the Canvas, so a graphics-context remount keeps every truck where it was.
+  const clock = useRef(newDisplayClock());
   const [lens, setLens] = useState(true);
   const [homeSignal, setHomeSignal] = useState(0);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -106,9 +132,6 @@ export const FacilityScene = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [setSelected]);
 
-  const hoverEntity = hovered ? ENTITIES.get(hovered) : undefined;
-  const hoverAt = hovered ? layout.get(hovered) : undefined;
-
   return (
     <div
       className="relative h-full w-full"
@@ -125,6 +148,15 @@ export const FacilityScene = ({
         role="img"
         aria-label="Schematic 3D view of DFW Commerce Center Building I with an illustrative run state"
       >
+        <MotionClock
+          motion={motion}
+          layout={layout}
+          live={live}
+          version={poseVersion}
+          clock={clock}
+          on={ambient}
+          speed={speed}
+        />
         <color attach="background" args={[palette.bg]} />
         <hemisphereLight
           args={[palette.sky, palette.bounce, palette.skyIntensity]}
@@ -150,21 +182,22 @@ export const FacilityScene = ({
             <meshLambertMaterial color={palette.staging} />
           </mesh>
         ))}
-        <Fixtures state={STATE} layout={layout} palette={palette} pick={pick} />
+        <Fixtures state={state} layout={layout} palette={palette} pick={pick} />
         <Vehicles
           kit={kit}
-          state={STATE}
+          state={state}
           layout={layout}
           palette={palette}
           pick={pick}
+          poses={live}
+          version={poseVersion}
+          moving={motion.ids}
         />
         <SelectionMarks
-          selected={selected ? layout.get(selected) : undefined}
-          hovered={
-            hoverEntity && hoverAt
-              ? { entity: hoverEntity, at: hoverAt }
-              : undefined
-          }
+          selectedId={selected}
+          hovered={hovered ? entities.get(hovered) : undefined}
+          poses={live}
+          onHoverLost={() => setHovered(null)}
         />
         <OrbitControls
           makeDefault
@@ -174,7 +207,9 @@ export const FacilityScene = ({
         <CameraRig bounds={bounds} view={VIEW} homeSignal={homeSignal} />
         {lens && (
           <MiniatureLens
-            focus={selected ? layout.get(selected) : undefined}
+            focusId={selected}
+            poses={live}
+            strength={1}
             saturation={palette.saturation}
           />
         )}
@@ -184,8 +219,9 @@ export const FacilityScene = ({
         lens={lens}
         meshes={meshes}
         graphicsLost={graphics === "lost"}
-        exceptions={EXCEPTIONS}
-        selected={selected ? ENTITIES.get(selected) : undefined}
+        exceptions={exceptions}
+        selected={selected ? entities.get(selected) : undefined}
+        ambient={ambient}
         onSelect={setSelected}
         onToggleRoof={() => setRoof((r) => !r)}
         onToggleMeshes={() => setModelsOn((on) => !on)}
