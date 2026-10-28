@@ -299,7 +299,10 @@ export class SimulationEngine {
       const oldDock = this.state.docks.get(trailer.location.dockId);
       if (oldDock && oldDock.occupiedTrailerId === trailerId) {
         oldDock.occupiedTrailerId = undefined;
-        oldDock.status = oldDock.reservedCommitmentId ? "reserved" : "free";
+        // A disruption closure outlives the trailer that was parked there.
+        if (oldDock.status !== "closed") {
+          oldDock.status = oldDock.reservedCommitmentId ? "reserved" : "free";
+        }
       }
     } else if (trailer.location.kind === "stall") {
       const oldStall = this.state.stalls.get(trailer.location.stallId);

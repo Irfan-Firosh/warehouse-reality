@@ -36,6 +36,17 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
       expect(engine.getStall("P-236")).toBeUndefined();
     });
 
+    it("P03: a closed dock stays closed after its trailer moves out", () => {
+      engine.injectDisruption("H-SYN", "dock_closure", "D-001");
+      const res = engine.executeMove("T-SYN-01", {
+        kind: "dock",
+        dockId: "D-002",
+      });
+      expect(res.success).toBe(true);
+      expect(engine.getDock("D-001")?.status).toBe("closed");
+      expect(engine.getDock("D-001")?.occupiedTrailerId).toBeUndefined();
+    });
+
     it("P01: preserves single physical location for each trailer", () => {
       // D-001 is already occupied by T-SYN-01
       // Attempting to move T-SYN-02 into D-001 must be rejected
