@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRole, AgentState, AgentToolCall } from "../agents/types";
+import { SimulationEngine } from "../engine/engine";
 import type { CommitmentEntity, EngineSnapshot } from "../engine/types";
 import { authorize } from "./authorize";
 
@@ -45,10 +46,9 @@ const commitment = (
   stateVersion: 1,
 });
 
+// Base fields come from a real checkpoint so the fixture tracks EngineSnapshot.
 const snapshot: EngineSnapshot = {
-  logicalTime: 0,
-  stateVersion: 1,
-  eventCount: 0,
+  ...new SimulationEngine().createCheckpoint(),
   state: {
     docks: [
       ["D-108", { id: "D-108", kind: "dock", status: "occupied" }],
