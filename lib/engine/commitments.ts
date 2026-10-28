@@ -391,3 +391,108 @@ export const expireStaleOffers = (
   }
   return expiredIds;
 };
+
+const OPEN_STATUSES: readonly CommitmentEntity["status"][] = [
+  "proposed",
+  "partially_accepted",
+  "ready_for_validation",
+  "committed",
+  "executing",
+];
+
+export const isOpenCommitment = (commitment: CommitmentEntity): boolean =>
+  OPEN_STATUSES.includes(commitment.status);
+
+/**
+ * Cancel a commitment, idempotent by request ID. Releases every reservation the
+ * commitment holds. Partial physical work (cargo already transferred) is kept.
+ */
+export const cancelCommitment = (
+  commitmentId: EntityId,
+  requestId: string,
+  reason: string,
+  processedRequests: Map<string, ToolResult>,
+  state: EngineState,
+  emitEvent: (evt: Omit<EngineEvent, "sequence">) => EngineEvent,
+): ToolResult => {
+  const cached = processedRequests.get(requestId);
+  if (cached) {
+    return cached;
+  }
+
+  const commitment = state.commitments.get(commitmentId);
+  if (!commitment) {
+    const res: ToolResult = {
+      success: false,
+      reasonCode: "NOT_FOUND",
+      message: `Commitment ${commitmentId} not found.`,
+      affectedIds: [commitmentId],
+      stateVersion: state.stateVersion,
+      eventIds: [],
+    };
+    processedRequests.set(requestId, res);
+    return res;
+  }
+
+  if (!isOpenCommitment(commitment)) {
+    const res: ToolResult = {
+      success: false,
+      reasonCode: "INVARIANT_VIOLATION",
+      message: `Cannot cancel commitment ${commitmentId} in status ${commitment.status}.`,
+      affectedIds: [commitmentId],
+      stateVersion: state.stateVersion,
+      eventIds: [],
+    };
+    processedRequests.set(requestId, res);
+    return res;
+  }
+
+  const wasExecuting = commitment.status === "executing";
+  const released: EntityId[] = [];
+
+  for (const dock of state.docks.values()) {
+    if (dock.reservedCommitmentId !== commitmentId) continue;
+    dock.reservedCommitmentId = undefined;
+    if (dock.status === "reserved") dock.status = "free";
+    released.push(dock.id);
+  }
+  for (const stall of state.stalls.values()) {
+    if (stall.reservedCommitmentId !== commitmentId) continue;
+    stall.reservedCommitmentId = undefined;
+    released.push(stall.id);
+  }
+  for (const holders of [
+    state.equipment,
+    state.workers,
+    state.trailers,
+    state.tractors,
+  ] as Map<EntityId, { id: EntityId; assignedCommitmentId?: EntityId }>[]) {
+    for (const holder of holders.values()) {
+      if (holder.assignedCommitmentId !== commitmentId) continue;
+      holder.assignedCommitmentId = undefined;
+      released.push(holder.id);
+    }
+  }
+
+  commitment.status = "cancelled";
+  commitment.rejectionReason = reason;
+  state.stateVersion += 1;
+
+  const event = emitEvent({
+    id: `E-${commitmentId}-CANCELLED`,
+    logicalTime: state.logicalTime,
+    type: "commitment_cancelled",
+    affectedIds: [commitmentId, ...released],
+    payload: { reason, partialWorkKept: wasExecuting, released },
+    stateVersion: state.stateVersion,
+  });
+
+  const result: ToolResult = {
+    success: true,
+    affectedIds: [commitmentId, ...released],
+    stateVersion: state.stateVersion,
+    eventIds: [event.id],
+  };
+  processedRequests.set(requestId, result);
+  return result;
+};

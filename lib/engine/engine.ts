@@ -6,9 +6,11 @@
 import {
   type CommitmentProposal,
   acceptOffer as engineAcceptOffer,
+  cancelCommitment as engineCancelCommitment,
   commitAllocation as engineCommitAllocation,
   proposeCommitment as engineProposeCommitment,
   expireStaleOffers,
+  isOpenCommitment,
 } from "./commitments";
 import {
   checkCargoTransferConservation,
@@ -133,6 +135,27 @@ export class SimulationEngine {
     return nextEvent;
   }
 
+  /**
+   * Consume queued events with logicalTime <= t in time order, then set the
+   * clock to t. Time never moves backwards: a t earlier than now consumes
+   * nothing and leaves the clock unchanged.
+   */
+  public advanceUntil(t: number): EngineEvent[] {
+    const consumed: EngineEvent[] = [];
+    while (this.eventQueue.length > 0 && this.eventQueue[0].logicalTime <= t) {
+      const next = this.eventQueue.shift();
+      if (!next) break;
+      this.state.logicalTime = Math.max(
+        this.state.logicalTime,
+        next.logicalTime,
+      );
+      this.eventLog.push(next);
+      consumed.push(next);
+    }
+    this.state.logicalTime = Math.max(this.state.logicalTime, t);
+    return consumed;
+  }
+
   // --- Entity Management (Setup and State) ---
 
   public addTrailer(trailer: TrailerEntity): void {
@@ -211,6 +234,21 @@ export class SimulationEngine {
     return engineCommitAllocation(
       commitmentId,
       requestId,
+      this.processedRequests,
+      this.state,
+      (e) => this.emitEvent(e),
+    );
+  }
+
+  public cancel(
+    commitmentId: EntityId,
+    requestId: string,
+    reason: string,
+  ): ToolResult {
+    return engineCancelCommitment(
+      commitmentId,
+      requestId,
+      reason,
       this.processedRequests,
       this.state,
       (e) => this.emitEvent(e),
@@ -357,6 +395,12 @@ export class SimulationEngine {
     // Conserve cargo quantity
     cargo.quantity -= quantity;
 
+    // First transfer moves the owning commitment into execution
+    const owner = trailer.assignedCommitmentId
+      ? this.state.commitments.get(trailer.assignedCommitmentId)
+      : undefined;
+    if (owner?.status === "committed") owner.status = "executing";
+
     const shipment = this.state.shipments.get(shipmentId);
     if (shipment) {
       shipment.transferredQuantity += quantity;
@@ -467,7 +511,7 @@ export class SimulationEngine {
   // --- Scoped Agent Observations (PRD §8.1) ---
 
   public observe(
-    role: "driver" | "dock_lead" | "yard_controller",
+    role: "driver" | "dock_lead" | "yard_controller" | "supervisor",
     agentEntityId: EntityId,
   ): Record<string, unknown> {
     const time = this.state.logicalTime;
@@ -516,6 +560,24 @@ export class SimulationEngine {
         role: "yard_controller",
         stalls: stallStatuses,
         tractors: Array.from(this.state.tractors.values()),
+      };
+    }
+
+    if (role === "supervisor") {
+      // Supervisor observes open commitments and the most recent events
+      return {
+        time,
+        version,
+        role: "supervisor",
+        openCommitments: Array.from(this.state.commitments.values())
+          .filter(isOpenCommitment)
+          .map((c) => ({
+            id: c.id,
+            task: c.task,
+            status: c.status,
+            participants: c.participants.map((p) => p.agentId),
+          })),
+        recentEvents: this.eventLog.slice(-10),
       };
     }
 
@@ -569,6 +631,16 @@ export class SimulationEngine {
           ],
         ),
       },
+      queue: this.eventQueue.map((e) => ({
+        ...e,
+        affectedIds: [...e.affectedIds],
+        payload: e.payload ? { ...e.payload } : undefined,
+      })),
+      processed: Array.from(this.processedRequests.entries()).map(([k, v]) => [
+        k,
+        { ...v },
+      ]),
+      sequence: this.sequenceCounter,
     };
   }
 
@@ -583,5 +655,8 @@ export class SimulationEngine {
     this.state.workers = new Map(snapshot.state.workers);
     this.state.shipments = new Map(snapshot.state.shipments);
     this.state.commitments = new Map(snapshot.state.commitments);
+    this.eventQueue = snapshot.queue.map((e) => ({ ...e }));
+    this.processedRequests = new Map(snapshot.processed);
+    this.sequenceCounter = snapshot.sequence;
   }
 }

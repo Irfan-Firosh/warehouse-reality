@@ -169,4 +169,7 @@ export interface EngineSnapshot {
     shipments: [EntityId, ShipmentEntity][];
     commitments: [EntityId, CommitmentEntity][];
   };
+  queue: EngineEvent[];
+  processed: [string, ToolResult][];
+  sequence: number;
 }
