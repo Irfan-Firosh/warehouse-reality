@@ -29,7 +29,12 @@ export const seedD108 = (engine: SimulationEngine): void => {
   engine.addTrailer({
     id: D108.trailer,
     location: { kind: "dock", dockId: D108.closedDock },
-    cargo: [{ shipmentId: D108.shipment, quantity: TOTAL_PALLETS }],
+    cargo: [
+      {
+        shipmentId: D108.shipment,
+        quantity: TOTAL_PALLETS - TRANSFERRED_PALLETS,
+      },
+    ],
     doorOpen: true,
     status: "serving",
   });

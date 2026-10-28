@@ -17,7 +17,7 @@ describe("seedD108", () => {
       dockId: D108.closedDock,
     });
     expect(trailer?.cargo).toEqual([
-      { shipmentId: D108.shipment, quantity: 22 },
+      { shipmentId: D108.shipment, quantity: 13 },
     ]);
     expect(engine.getDock(D108.closedDock)?.occupiedTrailerId).toBe(
       D108.trailer,
