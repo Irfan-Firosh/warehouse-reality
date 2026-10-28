@@ -50,10 +50,10 @@ export const createRun = (body: CreateRunBody): Run => {
     ...deliberatorsFor(body.mode),
   });
   runs.set(run.snapshot().runId, run);
-  while (runs.size > MAX_RUNS) {
-    const oldest = runs.keys().next().value;
-    if (oldest === undefined) break;
-    runs.delete(oldest);
+  // Evict the oldest idle runs; a run mid-step stays so its client can finish.
+  for (const [id, candidate] of runs) {
+    if (runs.size <= MAX_RUNS) break;
+    if (!candidate.busy) runs.delete(id);
   }
   return run;
 };

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createRun, getRun } from "./registry";
 
 const BODY = { scenarioId: "d108", mode: "live" } as const;
@@ -24,6 +24,17 @@ describe("run registry", () => {
     );
     expect(getRun(ids[0] as string)).toBeUndefined();
     for (const id of ids.slice(1)) expect(getRun(id)).toBeDefined();
+  });
+
+  it("never evicts a busy run", () => {
+    const busy = createRun(BODY);
+    vi.spyOn(busy, "busy", "get").mockReturnValue(true);
+    const ids = Array.from(
+      { length: 20 },
+      () => createRun(BODY).snapshot().runId,
+    );
+    expect(getRun(busy.snapshot().runId)).toBe(busy);
+    expect(getRun(ids[0] as string)).toBeUndefined();
   });
 
   it("seeds each run with the D-108 scenario in idle status", () => {
