@@ -6,6 +6,7 @@
 import type { Deliberator, ModelTier } from "../../types/run";
 import type { AgentRole } from "../agents/types";
 import type { CreateRunBody } from "./api-schemas";
+import { BaselineDeliberator } from "./baseline-deliberator";
 import { Run } from "./run";
 import { ScriptedDeliberator } from "./scripted-deliberator";
 
@@ -24,15 +25,18 @@ export const tierFor = (role: AgentRole): ModelTier => {
 };
 
 /**
- * Single swap point for deliberators. Placeholder: ScriptedDeliberator stands
- * in for B2's createNemotronDeliberator() (live) and A8's BaselineDeliberator
- * (baseline) until they merge.
+ * Single swap point for deliberators. Baseline mode runs the FCFS rules; every
+ * mode falls back to them. Placeholder: ScriptedDeliberator stands in for B2's
+ * createNemotronDeliberator() in live mode until it merges.
  */
 const deliberatorsFor = (
-  _mode: CreateRunBody["mode"],
+  mode: CreateRunBody["mode"],
 ): { deliberator: Deliberator; fallbackDeliberator: Deliberator } => ({
-  deliberator: new ScriptedDeliberator({}),
-  fallbackDeliberator: new ScriptedDeliberator({}),
+  deliberator:
+    mode === "baseline"
+      ? new BaselineDeliberator()
+      : new ScriptedDeliberator({}),
+  fallbackDeliberator: new BaselineDeliberator(),
 });
 
 // Shared via globalThis so route bundles and dev HMR see one registry.

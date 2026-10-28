@@ -5,16 +5,20 @@
 
 import type { SimulationEngine } from "../../engine/engine";
 
+const TOTAL_PALLETS = 22;
+const TRANSFERRED_PALLETS = 9;
+
 export const D108 = {
   closedDock: "D-108",
   targetDock: "D-112",
   trailer: "T-2291",
   shipment: "SH-5512",
   contender: "T-3061",
+  driverAgent: "DRV-047",
+  yardAgent: "YARD-1",
+  remainingPallets: TOTAL_PALLETS - TRANSFERRED_PALLETS,
 } as const;
 
-const TOTAL_PALLETS = 22;
-const TRANSFERRED_PALLETS = 9;
 const CONTENDER_STALL = "P-061";
 
 export const seedD108 = (engine: SimulationEngine): void => {
@@ -32,7 +36,7 @@ export const seedD108 = (engine: SimulationEngine): void => {
     cargo: [
       {
         shipmentId: D108.shipment,
-        quantity: TOTAL_PALLETS - TRANSFERRED_PALLETS,
+        quantity: D108.remainingPallets,
       },
     ],
     doorOpen: true,
