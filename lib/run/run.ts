@@ -83,7 +83,11 @@ export class Run {
   }
 
   snapshot(): RunSnapshot {
-    const status = this.running
+    return this.build(this.running);
+  }
+
+  private build(deliberating: boolean): RunSnapshot {
+    const status = deliberating
       ? "deliberating"
       : this.failed
         ? "error"
@@ -144,9 +148,10 @@ export class Run {
 
   private async runTurns(maxTurns: number): Promise<StepResult> {
     const start = this.events.length;
+    this.failed = false;
     try {
       for (let i = 0; i < maxTurns; i++) {
-        const agentId = this.queue.shift();
+        const agentId = this.queue[0];
         if (agentId === undefined) break;
         await this.turn(agentId);
       }
@@ -154,13 +159,15 @@ export class Run {
       this.failed = true;
       throw error;
     }
-    this.running = false;
-    return { snapshot: this.snapshot(), newEvents: this.events.slice(start) };
+    return { snapshot: this.build(false), newEvents: this.events.slice(start) };
   }
 
   private async turn(agentId: string): Promise<void> {
     const agent = this.runner.getAgent(agentId);
-    if (!agent) return;
+    if (!agent) {
+      this.queue.shift();
+      return;
+    }
     this.checkBudget();
     const exhausted = this.budget.exhausted;
     const deliberator = exhausted
@@ -170,7 +177,6 @@ export class Run {
     const stateVersion = this.engine.getStateVersion();
     const tier = this.opts.tierFor(agent.role);
     const seen = this.read.get(agentId) ?? 0;
-    this.read.set(agentId, agent.inbox.length);
     const input: TurnInput = {
       agent: structuredClone(agent),
       tier,
@@ -180,6 +186,10 @@ export class Run {
       logicalTime,
     };
     const decision = await deliberator.decide(input);
+    // Commit the dequeue and the read cursor only once deciding succeeded, so a
+    // throw leaves the agent queued with its unread inbox.
+    this.queue.shift();
+    this.read.set(agentId, agent.inbox.length);
     this.turns += 1;
     this.countSpend(deliberator.kind, decision.call);
 

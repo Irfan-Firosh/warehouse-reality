@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ModelTier, TurnDecision } from "../../types/run";
+import type {
+  Deliberator,
+  ModelTier,
+  TurnDecision,
+  TurnInput,
+} from "../../types/run";
 import type { AgentRole, AgentToolCall } from "../agents/types";
 import { Run } from "./run";
 import { D108 } from "./scenarios/d108";
@@ -258,5 +263,50 @@ describe("Run", () => {
     expect(snap.modelCalls.every((c) => c.promptTokens === null)).toBe(true);
     expect(snap.budget.tokens).toBe(0);
     expect(snap.budget.calls).toBe(2);
+  });
+
+  it("keeps an agent queued with its unread inbox when deliberation throws", async () => {
+    const seen: TurnInput[] = [];
+    let thrown = false;
+    let offered = false;
+    const flaky: Deliberator = {
+      kind: "scripted",
+      decide: async (input) => {
+        if (input.agent.id === "DRV-047") {
+          seen.push(input);
+          if (!thrown) {
+            thrown = true;
+            throw new Error("boom");
+          }
+        }
+        if (input.agent.id === "DOCK-C" && !offered) {
+          offered = true;
+          return propose(
+            "Unload T-2291 at D-112",
+            [{ resourceId: "D-112", type: "dock" }],
+            [
+              { agentId: "DOCK-C", role: "dock_lead" },
+              { agentId: "DRV-047", role: "driver" },
+            ],
+          );
+        }
+        return wait();
+      },
+    };
+    const run = new Run({
+      runId: "run-flaky",
+      mode: "live",
+      deliberator: flaky,
+      fallbackDeliberator: new ScriptedDeliberator({}),
+      tierFor: (role) => TIERS[role],
+    });
+    closeD108(run);
+    await expect(run.step(8)).rejects.toThrow("boom");
+    expect(run.busy).toBe(false);
+    await run.step(8);
+    expect(seen).toHaveLength(2);
+    expect(seen[0].inbox).toHaveLength(1);
+    expect(seen[1].inbox).toEqual(seen[0].inbox);
+    expect(run.snapshot().status).toBe("done");
   });
 });
