@@ -6,6 +6,7 @@ import type {
   RunSnapshot,
 } from "../../types/run";
 import { SimulationEngine } from "../engine/engine";
+import { BaselineDeliberator } from "./baseline-deliberator";
 import { computeMetrics } from "./metrics";
 import { createRun } from "./registry";
 import { D108 } from "./scenarios/d108";
@@ -251,5 +252,66 @@ describe("computeMetrics", () => {
       ],
     });
     expect(computeMetrics(snap).driverWaitingSec).toBe(600);
+  });
+});
+
+describe("baseline yard", () => {
+  // SYNTHETIC: ids describe no facility; they only exercise the tow rule.
+  const message = (
+    id: string,
+    purpose: "offer" | "status_update",
+    payload: Record<string, unknown>,
+  ) => ({
+    id,
+    fromAgentId: "YARD-SYN",
+    toAgentId: "DRV-SYN",
+    purpose,
+    payload,
+    sentAt: 100,
+  });
+
+  it("tows a second trailer after an earlier tow was already moved", async () => {
+    const decision = await new BaselineDeliberator().decide({
+      agent: {
+        id: "YARD-SYN",
+        role: "yard_controller",
+        name: "Synthetic yard",
+        assignedEntityId: "YT-SYN",
+        goals: [],
+        obligations: [],
+        inbox: [],
+        outbox: [
+          message("M-1", "offer", {
+            commitmentId: "C-TOW-OLD",
+            task: "Tow T-SYN-OLD to D-SYN-1 with YT-SYN",
+          }),
+          message("M-2", "status_update", {
+            trailerId: "T-SYN-OLD",
+            status: "moved",
+          }),
+          message("M-3", "offer", {
+            commitmentId: "C-TOW-NEW",
+            task: "Tow T-SYN-NEW to D-SYN-2 with YT-SYN",
+          }),
+        ],
+        memory: [],
+        fallbackCounter: 0,
+      },
+      tier: "super",
+      observation: {
+        tractors: [{ id: "YT-SYN", assignedCommitmentId: "C-TOW-NEW" }],
+      },
+      inbox: [],
+      stateVersion: 1,
+      logicalTime: 100,
+    });
+    expect(decision.toolCall).toEqual({
+      tool: "executeMove",
+      parameters: {
+        trailerId: "T-SYN-NEW",
+        targetLocation: { kind: "dock", dockId: "D-SYN-2" },
+        tractorId: "YT-SYN",
+      },
+    });
   });
 });

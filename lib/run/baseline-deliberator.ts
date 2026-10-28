@@ -257,9 +257,11 @@ export class BaselineDeliberator implements Deliberator {
       .filter((m) => m.purpose === "offer" && commitmentOf(m) === held)
       .map((m) => TOW.exec(textOf(m.payload.task)))
       .find((m) => m !== null);
-    const moved = agent.outbox.some((m) => hasStatus(m, "moved"));
+    const [, trailerId, dockId, tractorId] = tow ?? [];
+    const moved = agent.outbox.some(
+      (m) => hasStatus(m, "moved") && m.payload.trailerId === trailerId,
+    );
     if (tow && !moved) {
-      const [, trailerId, dockId, tractorId] = tow;
       return {
         thought: `${held} is committed; towing ${trailerId} to ${dockId}.`,
         toolCall: {
