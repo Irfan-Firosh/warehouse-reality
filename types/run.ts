@@ -10,6 +10,9 @@ import type {
   AgentToolCall,
 } from "@/lib/agents/types";
 import type { EngineSnapshot } from "@/lib/engine/types";
+import type { RunSource } from "@/lib/run/api-schemas";
+
+export type { RunSource };
 
 export type ModelTier = "nano" | "super" | "ultra";
 
@@ -46,11 +49,6 @@ export interface ModelCall {
   toolName?: AgentToolCall["tool"];
   outcome: "accepted" | "rejected" | "no_tool";
   reasonCode?: string;
-}
-
-export interface RunSource {
-  title: string;
-  url: string;
 }
 
 export interface RunEvent {

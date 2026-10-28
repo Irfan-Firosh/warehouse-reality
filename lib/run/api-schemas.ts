@@ -19,6 +19,7 @@ export const RunSourceSchema = z.object({
   title: z.string().min(1),
   url: z.url(),
 });
+export type RunSource = z.infer<typeof RunSourceSchema>;
 
 export const DisruptionBody = z.object({
   type: z.enum(["dock_closure", "equipment_failure", "external_delay"]),
