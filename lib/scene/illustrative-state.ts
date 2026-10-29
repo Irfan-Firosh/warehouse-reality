@@ -33,8 +33,10 @@ const buildDoors = (rand: () => number): Door[] =>
   Array.from({ length: S1.dockDoors }, (_, index): Door => {
     const id = doorId(index);
     const base = { id, kind: "door" as const, index };
-    if (id === CLOSED_DOOR) return { ...base, status: "closed" };
-    if (id === TARGET_DOOR) return { ...base, status: "reserved" };
+    if (id === CLOSED_DOOR)
+      return { ...base, status: "closed", note: "14:00–16:00 · hypothetical" };
+    if (id === TARGET_DOOR)
+      return { ...base, status: "reserved", note: "14:20–15:05" };
     const blockedBy = BLOCKED_DOORS.get(id);
     if (blockedBy) return { ...base, status: "blocked", trailer: blockedBy };
     return rand() < SERVING_SHARE
@@ -139,22 +141,23 @@ const buildTractors = (): Tractor[] => [
 ];
 
 const buildRamps = (): Ramp[] =>
-  Array.from({ length: S1.rampDoors }, (_, index) => ({
-    id: rampId(index),
-    kind: "ramp",
-    index,
-    status: "free",
-  }));
+  Array.from(
+    { length: S1.rampDoors },
+    (_, index): Ramp => ({
+      id: rampId(index),
+      kind: "ramp",
+      index,
+      status: "free",
+    }),
+  );
 
 const buildForklifts = (): Forklift[] =>
-  Array.from({ length: FORKLIFTS }, (_, index) => {
+  Array.from({ length: FORKLIFTS }, (_, index): Forklift => {
     const id = forkliftId(index);
-    return {
-      id,
-      kind: "forklift",
-      index,
-      status: id === FAILED_FORKLIFT ? "failed" : "working",
-    };
+    const base = { id, kind: "forklift" as const, index };
+    return id === FAILED_FORKLIFT
+      ? { ...base, status: "failed", note: "13:52 · hypothetical" }
+      : { ...base, status: "working" };
   });
 
 const buildState = (): SceneState => {

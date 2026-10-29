@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { type RefObject, useMemo } from "react";
 import { HALF_D, HALF_L, seeded } from "@/lib/scene/facility";
 import { boxPart } from "@/lib/scene/fit-model";
 import type { Placement, SceneState } from "@/lib/scene/types";
-import { InstancedParts, type PickHandlers } from "./instanced-parts";
+import {
+  InstancedParts,
+  type LiveInstances,
+  type PickHandlers,
+} from "./instanced-parts";
 import { atBottom, type EntityItem, placed } from "./items";
 import { CHASSIS_H, type Kit, PALLET } from "./model-kit";
 import { type ScenePalette, statusColor, WHITE } from "./palette";
@@ -36,7 +40,24 @@ interface VehiclesProps {
   layout: ReadonlyMap<string, Placement>;
   palette: ScenePalette;
   pick: PickHandlers;
+  /** Live poses for the entities in `moving`; everything else stays at its layout pose. */
+  poses: RefObject<ReadonlyMap<string, Placement>>;
+  /** Bumped by the motion clock whenever `poses` changes. */
+  version: RefObject<number>;
+  moving: ReadonlySet<string>;
 }
+
+const liveAt = (
+  poses: RefObject<ReadonlyMap<string, Placement>>,
+  version: RefObject<number>,
+  ids: ReadonlySet<string>,
+  dy = 0,
+): LiveInstances<EntityItem> => ({
+  poses,
+  version,
+  ids,
+  toItem: (pose, item) => atBottom(pose, item.entity, dy),
+});
 
 export const Vehicles = ({
   kit,
@@ -44,6 +65,9 @@ export const Vehicles = ({
   layout,
   palette,
   pick,
+  poses,
+  version,
+  moving,
 }: VehiclesProps) => {
   const items = useMemo(() => {
     const trailers = state.trailers.map((t) => atBottom(placed(layout, t), t));
@@ -54,6 +78,13 @@ export const Vehicles = ({
       forklifts: state.forklifts.map((f) => atBottom(placed(layout, f), f)),
     };
   }, [state, layout]);
+  const live = useMemo(
+    () => ({
+      chassis: liveAt(poses, version, moving),
+      bodies: liveAt(poses, version, moving, CHASSIS_H),
+    }),
+    [poses, version, moving],
+  );
   const color = (it: EntityItem) => statusColor(it.entity, palette);
   return (
     <group>
@@ -62,24 +93,28 @@ export const Vehicles = ({
         items={items.chassis}
         colorOf={() => palette.chassis}
         pick={pick}
+        live={live.chassis}
       />
       <InstancedParts
         parts={kit.trailerBody}
         items={items.bodies}
         colorOf={color}
         pick={pick}
+        live={live.bodies}
       />
       <InstancedParts
         parts={kit.tractor}
         items={items.tractors}
         colorOf={color}
         pick={pick}
+        live={live.chassis}
       />
       <InstancedParts
         parts={kit.forklift}
         items={items.forklifts}
         colorOf={color}
         pick={pick}
+        live={live.chassis}
       />
       <InstancedParts
         parts={kit.pallet}

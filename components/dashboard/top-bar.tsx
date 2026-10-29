@@ -1,6 +1,23 @@
 "use client";
 
-import { ProvenanceBadge } from "./provenance-badge";
+import {
+  Ellipsis,
+  PanelLeft,
+  PanelRight,
+  Pause,
+  Play,
+  SkipForward,
+  Zap,
+} from "lucide-react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
+import { TextureButton } from "@/components/ui/texture-button";
+import { useDismiss } from "./use-dismiss";
+
+const PILL =
+  "pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-200 bg-white/90 p-1 text-zinc-950 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90 dark:text-zinc-50";
+const ICON = "size-5 p-0.5";
+const MENU_ITEM =
+  "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors duration-150 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800";
 
 interface TopBarProps {
   logicalTime: string;
@@ -10,14 +27,10 @@ interface TopBarProps {
   onTogglePause: () => void;
   onNextEvent: () => void;
   onChangeSpeed: (speed: 1 | 4 | 16) => void;
-  onOpenEvidence: () => void;
   onOpenDisruptionModal: () => void;
-  onCheckpoint: () => void;
-  onBranch: () => void;
-  onCompare: () => void;
-  onToggleTheme: () => void;
 }
 
+/** Name, logical clock and run controls: the only chrome that stays on screen. */
 export const TopBar = ({
   logicalTime,
   isPaused,
@@ -26,176 +39,197 @@ export const TopBar = ({
   onTogglePause,
   onNextEvent,
   onChangeSpeed,
-  onOpenEvidence,
   onOpenDisruptionModal,
-  onCheckpoint,
-  onBranch,
-  onCompare,
-  onToggleTheme,
 }: TopBarProps) => {
+  const status = isDeliberating
+    ? "NVIDIA model deliberating"
+    : isPaused
+      ? "Paused · agents standby"
+      : "Running";
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 shadow-xs">
-      <div className="flex items-center gap-2">
-        <div className="grid size-7 place-items-center rounded-md bg-blue-600 text-xs font-bold text-white shadow-xs">
+    <header className={PILL}>
+      <span className="flex items-center gap-2 px-1.5">
+        <span className="grid size-6 place-items-center rounded-md bg-blue-600 text-[10px] font-bold text-white">
           WS
-        </div>
-        <span className="font-semibold text-sm tracking-tight">
+        </span>
+        <span className="hidden text-sm font-semibold tracking-tight sm:inline">
           Warehouse Sim
         </span>
-      </div>
-
-      <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block" />
-
-      <div className="flex flex-col leading-tight">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Profile
-        </span>
-        <span className="text-xs font-medium flex items-center gap-1.5">
-          DFW Bldg I <ProvenanceBadge kind="src">v1 · S1</ProvenanceBadge>
-        </span>
-      </div>
-
-      <div className="flex flex-col leading-tight">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Workload
-        </span>
-        <span className="text-xs font-medium flex items-center gap-1">
-          Demo Day v2 <ProvenanceBadge kind="drv">vol derived</ProvenanceBadge>
-        </span>
-      </div>
-
-      <div className="flex flex-col leading-tight hidden md:flex">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Run Mode
-        </span>
-        <span className="text-xs font-medium flex items-center gap-1">
-          Distributed agents · FCFS fallback
-        </span>
-      </div>
-
-      <div className="flex flex-col leading-tight">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Logical Time
-        </span>
-        <span className="font-mono tabular-nums text-xs font-semibold text-blue-600 dark:text-blue-400">
-          Day 1 · {logicalTime}
-        </span>
-      </div>
-
-      <div className="flex flex-col leading-tight hidden lg:flex">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-          Evidence
-        </span>
-        <div className="flex items-center gap-1">
-          <ProvenanceBadge
-            kind="unk"
-            onClick={onOpenEvidence}
-            title="Click to view 14 unknown DFW fields"
+      </span>
+      <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
+      <span
+        className="flex items-center gap-1.5 px-1.5 font-mono text-xs font-semibold tabular-nums text-blue-600 dark:text-blue-400"
+        title={status}
+      >
+        <span
+          className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-ping" : isPaused ? "" : "animate-pulse"}`}
+        />
+        <span className="sr-only">{status} · </span>
+        Day 1 · {logicalTime}
+      </span>
+      <TextureButton
+        variant="icon"
+        size="icon"
+        onClick={onTogglePause}
+        aria-label={isPaused ? "Resume simulation" : "Pause simulation"}
+      >
+        {isPaused ? <Play className={ICON} /> : <Pause className={ICON} />}
+      </TextureButton>
+      <TextureButton
+        variant="icon"
+        size="icon"
+        onClick={onNextEvent}
+        aria-label="Advance to the next scheduled event"
+        title="Next event"
+      >
+        <SkipForward className={ICON} />
+      </TextureButton>
+      <div
+        className="flex gap-0.5"
+        title="Display pacing only; never changes simulation outcomes"
+      >
+        {([1, 4, 16] as const).map((s) => (
+          <TextureButton
+            key={s}
+            variant={speed === s ? "primary" : "minimal"}
+            size="sm"
+            className="w-auto"
+            onClick={() => onChangeSpeed(s)}
+            aria-pressed={speed === s}
           >
-            14 unknowns
-          </ProvenanceBadge>
-          <ProvenanceBadge
-            kind="drv"
-            onClick={onOpenEvidence}
-            title="Click to view derived trip ends"
-          >
-            1 derived
-          </ProvenanceBadge>
-        </div>
+            {s}×
+          </TextureButton>
+        ))}
       </div>
-
-      <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        <span className="mr-1 hidden xl:inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
-          <span
-            className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-ping" : "animate-pulse"}`}
-          />
-          {isDeliberating
-            ? "NVIDIA model deliberating..."
-            : isPaused
-              ? "Time paused · agents standby"
-              : "Simulation running"}
-        </span>
-
-        <button
-          type="button"
-          onClick={onTogglePause}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
-          title={isPaused ? "Resume simulation" : "Pause simulation"}
-        >
-          {isPaused ? "▶ Resume" : "❚❚ Pause"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onNextEvent}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
-          title="Advance to next scheduled event"
-        >
-          ⏭ Next event
-        </button>
-
-        <div
-          className="flex overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
-          title="Display pacing only; never changes simulation outcomes"
-        >
-          {([1, 4, 16] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => onChangeSpeed(s)}
-              className={`h-7 px-2 text-xs font-medium transition-colors ${
-                speed === s
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "bg-white text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
-              }`}
-            >
-              {s}×
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onCheckpoint}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden sm:inline-flex"
-        >
-          ⚑ Checkpoint
-        </button>
-
-        <button
-          type="button"
-          onClick={onBranch}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden sm:inline-flex"
-        >
-          ⑂ Branch
-        </button>
-
-        <button
-          type="button"
-          onClick={onCompare}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors hidden md:inline-flex"
-        >
-          ⇄ Compare
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenDisruptionModal}
-          className="inline-flex h-7 items-center gap-1 rounded-md border border-amber-500/50 bg-amber-50/80 px-2 text-xs font-medium text-amber-900 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 transition-colors"
-        >
-          ⚡ Disruption
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
-          title="Toggle color theme"
-          aria-label="Toggle theme"
-        >
-          ◐
-        </button>
-      </div>
+      <TextureButton
+        variant="destructive"
+        size="sm"
+        className="w-auto"
+        onClick={onOpenDisruptionModal}
+        aria-label="Inject a disruption"
+      >
+        <Zap className="size-3.5" />
+        <span className="hidden sm:inline">Disruption</span>
+      </TextureButton>
     </header>
   );
 };
+
+interface ViewMenuProps {
+  facilityOpen: boolean;
+  inspectorOpen: boolean;
+  unknownCount: number;
+  onToggleFacility: () => void;
+  onToggleInspector: () => void;
+  onOpenEvidence: () => void;
+  onCheckpoint: () => void;
+  /** The scene settings button and its pane. */
+  settings: ReactNode;
+}
+
+interface MoreMenuProps {
+  unknownCount: number;
+  onOpenEvidence: () => void;
+  onCheckpoint: () => void;
+}
+
+/** The "⋯" menu: closes on a pick, an outside press or Escape (which then stops there). */
+const MoreMenu = ({
+  unknownCount,
+  onOpenEvidence,
+  onCheckpoint,
+}: MoreMenuProps) => {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, root, trigger);
+
+  const pick = (action: () => void) => () => {
+    setOpen(false);
+    action();
+  };
+
+  return (
+    <div ref={root} className="relative">
+      <TextureButton
+        ref={trigger}
+        variant="icon"
+        size="icon"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls="more-actions"
+        aria-label="More actions"
+      >
+        <Ellipsis className={ICON} />
+      </TextureButton>
+      {open && (
+        <div
+          id="more-actions"
+          role="menu"
+          className="absolute top-full right-0 z-30 mt-2 flex w-48 flex-col rounded-lg border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={pick(onOpenEvidence)}
+            className={MENU_ITEM}
+          >
+            Evidence · {unknownCount} unknowns
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={pick(onCheckpoint)}
+            className={MENU_ITEM}
+          >
+            ⚑ Checkpoint
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** Drawer toggles plus the rarely used actions, tucked behind "⋯". */
+export const ViewMenu = ({
+  facilityOpen,
+  inspectorOpen,
+  unknownCount,
+  onToggleFacility,
+  onToggleInspector,
+  onOpenEvidence,
+  onCheckpoint,
+  settings,
+}: ViewMenuProps) => (
+  <nav className={`${PILL} ml-auto`} aria-label="Panels">
+    <TextureButton
+      variant={facilityOpen ? "primary" : "minimal"}
+      size="sm"
+      className="w-auto"
+      onClick={onToggleFacility}
+      aria-pressed={facilityOpen}
+    >
+      <PanelLeft className="size-3.5" />
+      Facility
+    </TextureButton>
+    <TextureButton
+      variant={inspectorOpen ? "primary" : "minimal"}
+      size="sm"
+      className="w-auto"
+      onClick={onToggleInspector}
+      aria-pressed={inspectorOpen}
+    >
+      <PanelRight className="size-3.5" />
+      Inspector
+    </TextureButton>
+    {settings}
+    <MoreMenu
+      unknownCount={unknownCount}
+      onOpenEvidence={onOpenEvidence}
+      onCheckpoint={onCheckpoint}
+    />
+  </nav>
+);

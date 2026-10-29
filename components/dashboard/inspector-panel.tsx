@@ -38,26 +38,13 @@ export const InspectorPanel = ({
   isDeliberating,
   lastDeliberation,
 }: InspectorPanelProps) => {
-  if (!isOpen) {
-    return (
-      <aside className="w-10 shrink-0 flex flex-col items-center py-3 rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex h-full w-full flex-col items-center gap-3 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          aria-label="Expand inspector panel"
-        >
-          <span className="text-xs font-bold">«</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wider [writing-mode:vertical-rl]">
-            Inspector
-          </span>
-        </button>
-      </aside>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <aside className="w-80 shrink-0 flex flex-col rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 shadow-xs overflow-hidden">
+    <aside
+      aria-label="Inspector"
+      className="pointer-events-auto absolute inset-y-0 right-0 flex w-80 max-w-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white/95 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95"
+    >
       {/* Tab Header */}
       <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20">
         <div role="tablist" className="flex flex-1 text-xs">
@@ -89,9 +76,9 @@ export const InspectorPanel = ({
           type="button"
           onClick={onToggle}
           className="mr-2 grid size-6 place-items-center rounded text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          aria-label="Collapse inspector panel"
+          aria-label="Close inspector panel"
         >
-          »
+          ✕
         </button>
       </div>
 

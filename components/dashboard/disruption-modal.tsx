@@ -1,5 +1,6 @@
 "use client";
 
+import { TextureButton } from "@/components/ui/texture-button";
 import { ProvenanceBadge } from "./provenance-badge";
 
 interface DisruptionModalProps {
@@ -60,16 +61,16 @@ export const DisruptionModal = ({
               unloading on trailer T-2291, forcing agents to negotiate
               reassignment.
             </p>
-            <button
-              type="button"
+            <TextureButton
+              variant="destructive"
+              size="sm"
               onClick={() => {
                 onInject("H-1");
                 onClose();
               }}
-              className="w-full rounded bg-amber-600 py-1 text-xs font-medium text-white hover:bg-amber-700 transition-colors"
             >
               Apply H-1 Disruption
-            </button>
+            </TextureButton>
           </div>
 
           {/* H-2 */}
@@ -82,16 +83,16 @@ export const DisruptionModal = ({
               Declare forklift F-07 hydraulic fault. Releases active pallet task
               and requires crew lead reassignment.
             </p>
-            <button
-              type="button"
+            <TextureButton
+              variant="minimal"
+              size="sm"
               onClick={() => {
                 onInject("H-2");
                 onClose();
               }}
-              className="w-full rounded border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors"
             >
               Apply H-2 Disruption
-            </button>
+            </TextureButton>
           </div>
 
           {/* H-3 */}
@@ -104,27 +105,28 @@ export const DisruptionModal = ({
               Driver DRV-047 reports 45 min highway delay; triggers slot swap
               proposal with waiting carrier.
             </p>
-            <button
-              type="button"
+            <TextureButton
+              variant="minimal"
+              size="sm"
               onClick={() => {
                 onInject("H-3");
                 onClose();
               }}
-              className="w-full rounded border border-zinc-300 bg-white py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 transition-colors"
             >
               Apply H-3 Disruption
-            </button>
+            </TextureButton>
           </div>
         </div>
 
         <div className="flex justify-end pt-1">
-          <button
-            type="button"
+          <TextureButton
+            variant="minimal"
+            size="sm"
+            className="w-auto"
             onClick={onClose}
-            className="rounded px-3 py-1 text-xs font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
           >
             Cancel
-          </button>
+          </TextureButton>
         </div>
       </div>
     </div>
