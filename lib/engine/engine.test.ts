@@ -36,6 +36,17 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
       expect(engine.getStall("P-236")).toBeUndefined();
     });
 
+    it("P03: a closed dock stays closed after its trailer moves out", () => {
+      engine.injectDisruption("H-SYN", "dock_closure", "D-001");
+      const res = engine.executeMove("T-SYN-01", {
+        kind: "dock",
+        dockId: "D-002",
+      });
+      expect(res.success).toBe(true);
+      expect(engine.getDock("D-001")?.status).toBe("closed");
+      expect(engine.getDock("D-001")?.occupiedTrailerId).toBeUndefined();
+    });
+
     it("P01: preserves single physical location for each trailer", () => {
       // D-001 is already occupied by T-SYN-01
       // Attempting to move T-SYN-02 into D-001 must be rejected
@@ -310,6 +321,305 @@ describe("Authoritative Simulation Engine & Physical Invariants", () => {
         stallId: "P-001",
       });
       expect(engine.getDock("D-030")?.occupiedTrailerId).toBeUndefined();
+    });
+  });
+
+  describe("Engine clock and full checkpoints", () => {
+    const sched = (e: SimulationEngine, id: string, t: number) =>
+      e.scheduleEvent({
+        id,
+        logicalTime: t,
+        type: "TEST",
+        affectedIds: [],
+        stateVersion: 0,
+      });
+
+    it("advanceUntil consumes queued events in time order and never moves time backwards", () => {
+      sched(engine, "E-LATE", 50700);
+      sched(engine, "E-EARLY", 50500);
+      sched(engine, "E-BEYOND", 51000);
+
+      const consumed = engine.advanceUntil(50800);
+      expect(consumed.map((e) => e.id)).toEqual(["E-EARLY", "E-LATE"]);
+      expect(engine.getLogicalTime()).toBe(50800);
+
+      // Earlier target must not rewind time or consume anything
+      expect(engine.advanceUntil(50600)).toEqual([]);
+      expect(engine.getLogicalTime()).toBe(50800);
+
+      // The beyond-target event is still queued
+      expect(engine.advanceUntil(51000).map((e) => e.id)).toEqual(["E-BEYOND"]);
+    });
+
+    it("advanceUntil with an empty queue still sets logicalTime", () => {
+      expect(engine.advanceUntil(51234)).toEqual([]);
+      expect(engine.getLogicalTime()).toBe(51234);
+    });
+
+    it("restore(checkpoint) then the same commit requestId returns the stored result", () => {
+      engine.propose({
+        id: "C-RESTORE",
+        task: "Restore Idempotency",
+        participants: [{ agentId: "DRV-01", role: "driver" }],
+        requiredResources: [
+          {
+            resourceId: "D-020",
+            type: "dock",
+            startWindow: 51000,
+            endWindow: 52000,
+          },
+        ],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-01", "C-RESTORE", engine.getStateVersion());
+      const first = engine.commit("C-RESTORE", "REQ-RESTORE");
+      expect(first.success).toBe(true);
+      sched(engine, "E-QUEUED", 60000);
+
+      const checkpoint = engine.createCheckpoint();
+      expect(checkpoint.sequence).toBeGreaterThan(0);
+      expect(checkpoint.queue.map((e) => e.id)).toEqual(["E-QUEUED"]);
+
+      const fresh = new SimulationEngine({ startTime: 50400 });
+      fresh.restoreCheckpoint(checkpoint);
+      const versionAfterRestore = fresh.getStateVersion();
+      const second = fresh.commit("C-RESTORE", "REQ-RESTORE");
+      expect(second).toEqual(first);
+      expect(fresh.getStateVersion()).toBe(versionAfterRestore);
+      expect(fresh.advanceUntil(60000).map((e) => e.id)).toEqual(["E-QUEUED"]);
+    });
+  });
+  describe("Cancel and supervisor observation (synthetic fixtures)", () => {
+    const commitSynthetic = (
+      id: string,
+      resources: { resourceId: string; type: "dock" | "tractor" }[],
+    ) => {
+      engine.propose({
+        id,
+        task: "Synthetic booking",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: resources.map((r) => ({
+          ...r,
+          startWindow: 51000,
+          endWindow: 52000,
+        })),
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", id, engine.getStateVersion());
+      return engine.commit(id, `REQ-COMMIT-${id}`);
+    };
+
+    it("cancel before execution frees D-112 and the yard tractor", () => {
+      const committed = commitSynthetic("C-CANCEL-1", [
+        { resourceId: "D-112", type: "dock" },
+        { resourceId: "TR-SYN-01", type: "tractor" },
+      ]);
+      expect(committed.success).toBe(true);
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-CANCEL-1");
+
+      const res = engine.cancel("C-CANCEL-1", "REQ-CANCEL-1", "plan changed");
+      expect(res.success).toBe(true);
+      expect(engine.getCommitment("C-CANCEL-1")?.status).toBe("cancelled");
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBeUndefined();
+      expect(engine.getDock("D-112")?.status).toBe("free");
+      expect(engine.observe("yard_controller", "YC-1").tractors).toEqual([
+        expect.objectContaining({
+          id: "TR-SYN-01",
+          assignedCommitmentId: undefined,
+        }),
+      ]);
+
+      // The freed dock can be booked by another commitment.
+      const rebook = commitSynthetic("C-CANCEL-2", [
+        { resourceId: "D-112", type: "dock" },
+      ]);
+      expect(rebook.success).toBe(true);
+    });
+
+    it("cancel with a repeated requestId returns the first result", () => {
+      commitSynthetic("C-CANCEL-3", [{ resourceId: "D-112", type: "dock" }]);
+      const first = engine.cancel("C-CANCEL-3", "REQ-CANCEL-3", "dup test");
+      const version = engine.getStateVersion();
+      const eventCount = engine.getEventLog().length;
+      const second = engine.cancel("C-CANCEL-3", "REQ-CANCEL-3", "dup test");
+      expect(second).toEqual(first);
+      expect(engine.getStateVersion()).toBe(version);
+      expect(engine.getEventLog().length).toBe(eventCount);
+    });
+
+    it("cancel during unload keeps transferredQuantity", () => {
+      engine.addTrailer({
+        id: "T-SYN-CX",
+        location: { kind: "dock", dockId: "D-112" },
+        cargo: [{ shipmentId: "SH-SYN-CX", quantity: 12 }],
+        doorOpen: true,
+        status: "serving",
+        assignedCommitmentId: "C-CANCEL-4",
+      });
+      engine.addShipment({
+        id: "SH-SYN-CX",
+        origin: "Supplier A",
+        destination: "Bay 4",
+        totalQuantity: 12,
+        transferredQuantity: 0,
+        containerId: "T-SYN-CX",
+      });
+      engine.propose({
+        id: "C-CANCEL-4",
+        task: "Synthetic unload",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [
+          {
+            resourceId: "TR-SYN-01",
+            type: "tractor",
+            startWindow: 51000,
+            endWindow: 52000,
+          },
+        ],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", "C-CANCEL-4", engine.getStateVersion());
+      expect(engine.commit("C-CANCEL-4", "REQ-C4").success).toBe(true);
+      expect(engine.executeUnload("T-SYN-CX", "SH-SYN-CX", 5).success).toBe(
+        true,
+      );
+      expect(engine.getCommitment("C-CANCEL-4")?.status).toBe("executing");
+
+      const res = engine.cancel("C-CANCEL-4", "REQ-CANCEL-4", "operator abort");
+      expect(res.success).toBe(true);
+      expect(engine.getCommitment("C-CANCEL-4")?.status).toBe("cancelled");
+      expect(engine.observe("yard_controller", "YC-1").tractors).toEqual([
+        expect.objectContaining({ assignedCommitmentId: undefined }),
+      ]);
+      expect(engine.getTrailer("T-SYN-CX")?.cargo[0].quantity).toBe(7);
+      expect(
+        engine.getTrailer("T-SYN-CX")?.assignedCommitmentId,
+      ).toBeUndefined();
+      const obs = engine.observe("supervisor", "SUP-1");
+      expect(obs.openCommitments).toEqual([]);
+    });
+
+    it("supervisor observe lists open commitments and the last 10 events", () => {
+      commitSynthetic("C-OPEN-1", [{ resourceId: "D-112", type: "dock" }]);
+      engine.propose({
+        id: "C-OPEN-2",
+        task: "Still proposed",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [],
+        expiresInSeconds: 600,
+      });
+      for (let i = 0; i < 12; i++) {
+        engine.emitEvent({
+          id: `E-FILLER-${i}`,
+          logicalTime: 50400,
+          type: "filler",
+          affectedIds: [],
+          stateVersion: engine.getStateVersion(),
+        });
+      }
+      commitSynthetic("C-DONE", [{ resourceId: "D-113", type: "dock" }]);
+      engine.cancel("C-DONE", "REQ-DONE", "closed out");
+
+      const obs = engine.observe("supervisor", "SUP-1");
+      expect(obs.role).toBe("supervisor");
+      const open = obs.openCommitments as { id: string }[];
+      expect(open.map((c) => c.id).sort()).toEqual(["C-OPEN-1", "C-OPEN-2"]);
+      const recent = obs.recentEvents as { id: string }[];
+      expect(recent).toHaveLength(10);
+      expect(recent.at(-1)?.id).toBe(engine.getEventLog().at(-1)?.id);
+    });
+  });
+
+  describe("Booking windows (synthetic fixtures)", () => {
+    const book = (
+      id: string,
+      resourceId: string,
+      type: "dock" | "tractor",
+      startWindow: number,
+      endWindow: number,
+    ) => {
+      engine.propose({
+        id,
+        task: "Synthetic windowed booking",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [{ resourceId, type, startWindow, endWindow }],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", id, engine.getStateVersion());
+      return engine.commit(id, `REQ-${id}`);
+    };
+
+    it("books one dock for two different hours", () => {
+      expect(book("C-W1", "D-112", "dock", 51000, 52000).success).toBe(true);
+      expect(book("C-W2", "D-112", "dock", 54000, 55000).success).toBe(true);
+      expect(engine.getCommitment("C-W2")?.status).toBe("committed");
+    });
+
+    it("treats back-to-back windows as not overlapping", () => {
+      expect(book("C-W1", "TR-SYN-01", "tractor", 51000, 52000).success).toBe(
+        true,
+      );
+      expect(book("C-W2", "TR-SYN-01", "tractor", 52000, 53000).success).toBe(
+        true,
+      );
+    });
+
+    it("rejects an overlapping window with RESOURCE_UNAVAILABLE", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      const res = book("C-W2", "D-112", "dock", 51900, 53000);
+      expect(res.success).toBe(false);
+      expect(res.reasonCode).toBe("RESOURCE_UNAVAILABLE");
+      expect(res.message).toContain("C-W1");
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W1");
+    });
+
+    it("a cancelled booking no longer blocks its window", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      engine.cancel("C-W1", "REQ-CANCEL-W1", "plan changed");
+      expect(book("C-W2", "D-112", "dock", 51000, 52000).success).toBe(true);
+    });
+
+    it("cancelling the current holder passes the dock to the next booking", () => {
+      book("C-W1", "D-112", "dock", 51000, 52000);
+      book("C-W2", "D-112", "dock", 54000, 55000);
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W1");
+
+      const res = engine.cancel("C-W1", "REQ-CANCEL-W1", "plan changed");
+      expect(res.success).toBe(true);
+      expect(engine.getDock("D-112")?.reservedCommitmentId).toBe("C-W2");
+
+      // The later booking still blocks its own window.
+      const clash = book("C-W3", "D-112", "dock", 54500, 56000);
+      expect(clash.reasonCode).toBe("RESOURCE_UNAVAILABLE");
+    });
+
+    it("a holder pointer with no known commitment blocks every window", () => {
+      engine.addTrailer({
+        id: "T-SYN-HELD",
+        location: { kind: "stall", stallId: "P-001" },
+        cargo: [],
+        doorOpen: false,
+        status: "parked",
+        assignedCommitmentId: "C-UNKNOWN",
+      });
+      engine.propose({
+        id: "C-W4",
+        task: "Synthetic windowed booking",
+        participants: [{ agentId: "DRV-SYN", role: "driver" }],
+        requiredResources: [
+          {
+            resourceId: "T-SYN-HELD",
+            type: "trailer",
+            startWindow: 60000,
+            endWindow: 61000,
+          },
+        ],
+        expiresInSeconds: 600,
+      });
+      engine.accept("DRV-SYN", "C-W4", engine.getStateVersion());
+      expect(engine.commit("C-W4", "REQ-C-W4").reasonCode).toBe(
+        "RESOURCE_UNAVAILABLE",
+      );
     });
   });
 });

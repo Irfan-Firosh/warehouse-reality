@@ -130,7 +130,8 @@ export type ReasonCode =
   | "OFFER_EXPIRED"
   | "DUPLICATE_REQUEST"
   | "PARTICIPANTS_INCOMPLETE"
-  | "NOT_FOUND";
+  | "NOT_FOUND"
+  | "PERMISSION_DENIED";
 
 export interface ToolResult {
   success: boolean;
@@ -168,4 +169,7 @@ export interface EngineSnapshot {
     shipments: [EntityId, ShipmentEntity][];
     commitments: [EntityId, CommitmentEntity][];
   };
+  queue: EngineEvent[];
+  processed: [string, ToolResult][];
+  sequence: number;
 }

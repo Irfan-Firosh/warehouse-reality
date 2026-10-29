@@ -3,7 +3,7 @@
  * Enforces atomic reservations, stale-version checks, and idempotent execution.
  */
 
-import { checkReservationAvailability } from "./invariants";
+import { checkReservationAvailability, nextHolder } from "./invariants";
 import type {
   CommitmentEntity,
   CommitmentParticipant,
@@ -298,37 +298,38 @@ export const commitAllocation = (
     }
   }
 
-  // All resources verified available -> Atomically lock all required resources
+  // All resources verified available -> Atomically lock all required resources.
+  // A resource already held for a different window keeps its current holder.
   for (const res of commitment.requiredResources) {
     switch (res.type) {
       case "dock": {
         const dock = state.docks.get(res.resourceId);
-        if (dock) dock.reservedCommitmentId = commitmentId;
+        if (dock) dock.reservedCommitmentId ??= commitmentId;
         break;
       }
       case "stall": {
         const stall = state.stalls.get(res.resourceId);
-        if (stall) stall.reservedCommitmentId = commitmentId;
+        if (stall) stall.reservedCommitmentId ??= commitmentId;
         break;
       }
       case "equipment": {
         const eq = state.equipment.get(res.resourceId);
-        if (eq) eq.assignedCommitmentId = commitmentId;
+        if (eq) eq.assignedCommitmentId ??= commitmentId;
         break;
       }
       case "worker": {
         const worker = state.workers.get(res.resourceId);
-        if (worker) worker.assignedCommitmentId = commitmentId;
+        if (worker) worker.assignedCommitmentId ??= commitmentId;
         break;
       }
       case "trailer": {
         const trailer = state.trailers.get(res.resourceId);
-        if (trailer) trailer.assignedCommitmentId = commitmentId;
+        if (trailer) trailer.assignedCommitmentId ??= commitmentId;
         break;
       }
       case "tractor": {
         const tractor = state.tractors.get(res.resourceId);
-        if (tractor) tractor.assignedCommitmentId = commitmentId;
+        if (tractor) tractor.assignedCommitmentId ??= commitmentId;
         break;
       }
     }
@@ -390,4 +391,136 @@ export const expireStaleOffers = (
     }
   }
   return expiredIds;
+};
+
+const OPEN_STATUSES: readonly CommitmentEntity["status"][] = [
+  "proposed",
+  "partially_accepted",
+  "ready_for_validation",
+  "committed",
+  "executing",
+];
+
+export const isOpenCommitment = (commitment: CommitmentEntity): boolean =>
+  OPEN_STATUSES.includes(commitment.status);
+
+/**
+ * Cancel a commitment, idempotent by request ID. Releases every reservation the
+ * commitment holds. Partial physical work (cargo already transferred) is kept.
+ */
+export const cancelCommitment = (
+  commitmentId: EntityId,
+  requestId: string,
+  reason: string,
+  processedRequests: Map<string, ToolResult>,
+  state: EngineState,
+  emitEvent: (evt: Omit<EngineEvent, "sequence">) => EngineEvent,
+): ToolResult => {
+  const cached = processedRequests.get(requestId);
+  if (cached) {
+    return cached;
+  }
+
+  const commitment = state.commitments.get(commitmentId);
+  if (!commitment) {
+    const res: ToolResult = {
+      success: false,
+      reasonCode: "NOT_FOUND",
+      message: `Commitment ${commitmentId} not found.`,
+      affectedIds: [commitmentId],
+      stateVersion: state.stateVersion,
+      eventIds: [],
+    };
+    processedRequests.set(requestId, res);
+    return res;
+  }
+
+  if (!isOpenCommitment(commitment)) {
+    const res: ToolResult = {
+      success: false,
+      reasonCode: "INVARIANT_VIOLATION",
+      message: `Cannot cancel commitment ${commitmentId} in status ${commitment.status}.`,
+      affectedIds: [commitmentId],
+      stateVersion: state.stateVersion,
+      eventIds: [],
+    };
+    processedRequests.set(requestId, res);
+    return res;
+  }
+
+  const wasExecuting = commitment.status === "executing";
+  const released: EntityId[] = [];
+
+  // A released resource passes to its next committed holder, if any.
+  for (const dock of state.docks.values()) {
+    if (dock.reservedCommitmentId !== commitmentId) continue;
+    dock.reservedCommitmentId = nextHolder(
+      "dock",
+      dock.id,
+      state,
+      commitmentId,
+    );
+    if (dock.status === "reserved" && !dock.reservedCommitmentId) {
+      dock.status = "free";
+    }
+    released.push(dock.id);
+  }
+  for (const stall of state.stalls.values()) {
+    if (stall.reservedCommitmentId !== commitmentId) continue;
+    stall.reservedCommitmentId = nextHolder(
+      "stall",
+      stall.id,
+      state,
+      commitmentId,
+    );
+    released.push(stall.id);
+  }
+  for (const [type, holders] of [
+    ["equipment", state.equipment],
+    ["worker", state.workers],
+    ["trailer", state.trailers],
+    ["tractor", state.tractors],
+  ] as [
+    ResourceReservation["type"],
+    Map<EntityId, { id: EntityId; assignedCommitmentId?: EntityId }>,
+  ][]) {
+    for (const holder of holders.values()) {
+      if (holder.assignedCommitmentId !== commitmentId) continue;
+      holder.assignedCommitmentId = nextHolder(
+        type,
+        holder.id,
+        state,
+        commitmentId,
+      );
+      released.push(holder.id);
+    }
+  }
+  // Holds in a later window never took the pointer; they are released too.
+  if (commitment.status === "committed" || wasExecuting) {
+    for (const res of commitment.requiredResources) {
+      if (!released.includes(res.resourceId)) released.push(res.resourceId);
+    }
+  }
+
+  commitment.status = "cancelled";
+  commitment.rejectionReason = reason;
+  state.stateVersion += 1;
+
+  const event = emitEvent({
+    id: `E-${commitmentId}-CANCELLED`,
+    logicalTime: state.logicalTime,
+    type: "commitment_cancelled",
+    affectedIds: [commitmentId, ...released],
+    payload: { reason, partialWorkKept: wasExecuting, released },
+    stateVersion: state.stateVersion,
+  });
+
+  const result: ToolResult = {
+    success: true,
+    affectedIds: [commitmentId, ...released],
+    stateVersion: state.stateVersion,
+    eventIds: [event.id],
+  };
+  processedRequests.set(requestId, result);
+  return result;
 };
