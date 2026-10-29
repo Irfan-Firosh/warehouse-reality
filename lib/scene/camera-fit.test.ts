@@ -4,6 +4,8 @@ import {
   type CameraPose,
   CHASE_DISTANCE,
   CHASE_PITCH,
+  CHASE_SWAP_FT,
+  chaseAzimuth,
   chasePose,
   EVEN_INSETS,
   fitCamera,
@@ -160,13 +162,13 @@ describe("chasePose", () => {
   const truck = {
     x: 100,
     y: 6,
-    z: -40,
+    z: 400,
     rotY: Math.PI / 2,
     size: [8.5, 11, 20] as const,
   };
 
   it("sits 250 ft away at a 35° pitch, looking at the truck", () => {
-    const { position, target } = chasePose(truck);
+    const { position, target } = chasePose(truck, chaseAzimuth(truck));
     expect(target).toEqual([truck.x, truck.y, truck.z]);
     const d = [
       position[0] - target[0],
@@ -179,10 +181,22 @@ describe("chasePose", () => {
     expect(CHASE_PITCH).toBeCloseTo((35 * Math.PI) / 180, 9);
   });
 
-  it("sits behind the truck's nose", () => {
-    const { position } = chasePose(truck);
-    // rotY π/2 faces +x, so the camera is on the -x side.
-    expect(position[0]).toBeLessThan(truck.x);
-    expect(position[2]).toBeCloseTo(truck.z, 6);
+  it("looks from the yard side the truck is on, away from the building", () => {
+    const south = chasePose(truck, chaseAzimuth(truck));
+    expect(south.position[2]).toBeGreaterThan(truck.z);
+    const north = { ...truck, z: -400 };
+    expect(chasePose(north, chaseAzimuth(north)).position[2]).toBeLessThan(
+      north.z,
+    );
+  });
+
+  it("swaps yard sides only once the truck is well into the other yard", () => {
+    const south = chaseAzimuth(truck);
+    const north = chaseAzimuth({ ...truck, z: -400 });
+    const at = (z: number, side: number) => chaseAzimuth({ ...truck, z }, side);
+    expect(at(-CHASE_SWAP_FT + 1, south)).toBe(south);
+    expect(at(-CHASE_SWAP_FT - 1, south)).toBe(north);
+    expect(at(CHASE_SWAP_FT - 1, north)).toBe(north);
+    expect(at(CHASE_SWAP_FT + 1, north)).toBe(south);
   });
 });

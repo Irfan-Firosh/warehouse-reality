@@ -32,8 +32,8 @@ export const newDisplayClock = (): DisplayClock => ({
   speed: 1,
 });
 
-/** Negative priority runs before every default (0) frame callback and leaves rendering to R3F. */
-const BEFORE_CONSUMERS = -1;
+/** Before the follow rig (-1.5), the orbit controls (-1) and every default (0) frame callback; negative priorities leave rendering to R3F. */
+const BEFORE_CONSUMERS = -2;
 /** A long frame (tab in the background) advances the display clock by at most this much. */
 const MAX_STEP_S = 0.1;
 

@@ -9,8 +9,9 @@ import {
   SkipForward,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { TextureButton } from "@/components/ui/texture-button";
+import { useDismiss } from "./use-dismiss";
 
 const PILL =
   "pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-zinc-200 bg-white/90 p-1 text-zinc-950 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/90 dark:text-zinc-50";
@@ -122,6 +123,8 @@ interface ViewMenuProps {
   onToggleInspector: () => void;
   onOpenEvidence: () => void;
   onCheckpoint: () => void;
+  /** The scene settings button and its pane. */
+  settings: ReactNode;
 }
 
 interface MoreMenuProps {
@@ -140,27 +143,8 @@ const MoreMenu = ({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!(e.target instanceof Node && root.current?.contains(e.target))) {
-        setOpen(false);
-      }
-    };
-    // Capture on window runs before the scene's Escape handler, which would clear the selection.
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      setOpen(false);
-      trigger.current?.focus();
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(open, close, root, trigger);
 
   const pick = (action: () => void) => () => {
     setOpen(false);
@@ -218,6 +202,7 @@ export const ViewMenu = ({
   onToggleInspector,
   onOpenEvidence,
   onCheckpoint,
+  settings,
 }: ViewMenuProps) => (
   <nav className={`${PILL} ml-auto`} aria-label="Panels">
     <TextureButton
@@ -240,6 +225,7 @@ export const ViewMenu = ({
       <PanelRight className="size-3.5" />
       Inspector
     </TextureButton>
+    {settings}
     <MoreMenu
       unknownCount={unknownCount}
       onOpenEvidence={onOpenEvidence}

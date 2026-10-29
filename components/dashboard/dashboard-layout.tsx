@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import type { SceneStatus } from "@/components/scene/facility-scene";
 import { SceneLoader } from "@/components/scene/scene-loader";
 import { UNKNOWN_DFW_FIELDS } from "@/lib/dashboard/data";
 import { useSimulation } from "@/lib/dashboard/use-simulation";
+import { DEFAULT_VIEW, type ViewSettings } from "@/lib/scene/view-settings";
 import type { TabKey } from "@/types/dashboard";
 import { CausalTimeline } from "./causal-timeline";
 import { DisruptionModal } from "./disruption-modal";
 import { FacilityPanel } from "./facility-panel";
 import { InspectorPanel } from "./inspector-panel";
+import { SettingsPane } from "./settings-pane";
 import { TopBar, ViewMenu } from "./top-bar";
 
 export const DashboardLayout = () => {
@@ -18,6 +21,14 @@ export const DashboardLayout = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("agent");
   const [disruptionModalOpen, setDisruptionModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [view, setView] = useState<ViewSettings>(DEFAULT_VIEW);
+  const [followId, setFollowId] = useState<string | null>(null);
+  const [homeSignal, setHomeSignal] = useState(0);
+  const [sceneStatus, setSceneStatus] = useState<SceneStatus>({
+    meshes: "loading",
+    canFollow: false,
+    graphicsLost: false,
+  });
 
   // Authoritative simulation & agent integration
   const {
@@ -88,6 +99,11 @@ export const DashboardLayout = () => {
           selectedId={selectedId}
           onSelectEntity={handleSelectEntity}
           speed={speed}
+          view={view}
+          followId={followId}
+          onFollow={setFollowId}
+          homeSignal={homeSignal}
+          onStatus={setSceneStatus}
         />
       </section>
 
@@ -134,6 +150,28 @@ export const DashboardLayout = () => {
             onToggleInspector={() => setRightOpen((o) => !o)}
             onOpenEvidence={handleOpenEvidence}
             onCheckpoint={() => showToast(createCheckpoint())}
+            settings={
+              <SettingsPane
+                view={view}
+                meshes={sceneStatus.meshes}
+                canFollow={sceneStatus.canFollow}
+                graphicsLost={sceneStatus.graphicsLost}
+                following={followId !== null}
+                onChange={setView}
+                onResetView={() => {
+                  setFollowId(null);
+                  setHomeSignal((n) => n + 1);
+                }}
+                onToggleFollow={() => {
+                  if (followId) {
+                    setFollowId(null);
+                    setHomeSignal((n) => n + 1);
+                  } else if (selectedId) {
+                    setFollowId(selectedId);
+                  }
+                }}
+              />
+            }
           />
         </div>
 

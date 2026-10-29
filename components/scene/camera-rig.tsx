@@ -15,6 +15,8 @@ interface CameraRigProps {
   view: ViewAngles;
   /** Changing this number sends the camera back to the fitted home view. */
   homeSignal: number;
+  /** While true another rig drives the camera, so nothing refits; a reset waiting for it applies once it clears. */
+  paused?: boolean;
 }
 
 type Orbit = ComponentRef<typeof OrbitControls>;
@@ -24,7 +26,7 @@ const CLEAR_PX = { top: 56, bottom: 48, side: 16 } as const;
 /** Cap on any one inset, so small canvases still show the whole site. */
 const MAX_INSET = 0.2;
 
-const isOrbit = (c: unknown): c is Orbit =>
+export const isOrbit = (c: unknown): c is Orbit =>
   typeof c === "object" && c !== null && "target" in c && "update" in c;
 
 const overlayInsets = (width: number, height: number): ScreenInsets => {
@@ -41,7 +43,12 @@ const overlayInsets = (width: number, height: number): ScreenInsets => {
  * Frames the site on mount and on reset, and again on resize until the user
  * orbits or zooms; after that a resize keeps their view.
  */
-export const CameraRig = ({ bounds, view, homeSignal }: CameraRigProps) => {
+export const CameraRig = ({
+  bounds,
+  view,
+  homeSignal,
+  paused = false,
+}: CameraRigProps) => {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls);
   const width = useThree((s) => s.size.width);
@@ -61,7 +68,7 @@ export const CameraRig = ({ bounds, view, homeSignal }: CameraRigProps) => {
   }, [controls]);
 
   useLayoutEffect(() => {
-    if (width === 0 || height === 0) return;
+    if (width === 0 || height === 0 || paused) return;
     const last = fitted.current;
     const reset =
       !last ||
@@ -89,7 +96,7 @@ export const CameraRig = ({ bounds, view, homeSignal }: CameraRigProps) => {
       controls.update();
       controls.enableDamping = true;
     }
-  }, [bounds, view, width, height, camera, controls, homeSignal]);
+  }, [bounds, view, width, height, camera, controls, homeSignal, paused]);
 
   return null;
 };

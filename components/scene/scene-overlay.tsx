@@ -1,75 +1,63 @@
 "use client";
 
-import { Aperture, Box, House, RotateCcw } from "lucide-react";
-import {
-  TextureButton,
-  type TextureButtonProps,
-} from "@/components/ui/texture-button";
+import { Crosshair } from "lucide-react";
+import { TextureButton } from "@/components/ui/texture-button";
 import type { ExceptionOption } from "@/lib/scene/exceptions";
 import { KIND_LABEL, statusText } from "@/lib/scene/status-text";
 import type { Entity } from "@/lib/scene/types";
-import { cn } from "@/lib/utils";
 
 export type MeshMode = "loading" | "models" | "failed" | "off";
 
-const MESH_LABEL: Readonly<Record<MeshMode, string>> = {
+/** The Models switch label in the settings pane, so a load failure is never silent. */
+export const MESH_LABEL: Readonly<Record<MeshMode, string>> = {
   loading: "Models…",
   models: "Models",
   failed: "Models ✕",
   off: "Models",
 };
-const MESH_TITLE: Readonly<Record<MeshMode, string>> = {
+
+export const MESH_TITLE: Readonly<Record<MeshMode, string>> = {
   loading: "Primitives shown while the free models load",
   models: "Free models on; click for primitives",
   failed: "Models failed to load; primitives shown",
   off: "Primitives on; click for the free models",
 };
 
+/** How the credits line introduces the models, so loading and a failure read differently from off. */
+const CREDIT_LEAD: Readonly<Record<MeshMode, string>> = {
+  loading: "Models (loading; primitives shown): ",
+  models: "Models: ",
+  failed: "Models (failed to load; primitives shown): ",
+  off: "Models (off): ",
+};
+
 interface SceneOverlayProps {
-  roof: boolean;
-  lens: boolean;
   meshes: MeshMode;
   graphicsLost: boolean;
   exceptions: readonly ExceptionOption[];
   selected: Entity | undefined;
   ambient: boolean;
+  canFollow: boolean;
+  following: boolean;
   onSelect: (id: string | null) => void;
-  onToggleRoof: () => void;
-  onToggleMeshes: () => void;
-  onToggleLens: () => void;
-  onReset: () => void;
+  onToggleFollow: () => void;
 }
 
 const PILL =
   "pointer-events-auto rounded-md bg-zinc-900/80 text-zinc-100 shadow-sm backdrop-blur-sm";
-const ICON = "size-3.5";
 const SELECT =
   "h-[30px] rounded-[6px] border border-black/20 bg-gradient-to-b from-white to-neutral-50 px-2 text-xs text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50 dark:border-neutral-950 dark:from-neutral-800 dark:to-neutral-700 dark:text-neutral-200 [&>option]:bg-white [&>option]:text-zinc-900";
 
-interface ToggleProps extends Omit<TextureButtonProps, "variant" | "size"> {
-  on: boolean;
-}
-
-/** A view switch: the dark "primary" face while on, "minimal" while off. */
-const Toggle = ({ on, className, ...props }: ToggleProps) => (
-  <TextureButton
-    variant={on ? "primary" : "minimal"}
-    size="sm"
-    className={cn("w-auto", className)}
-    aria-pressed={on}
-    {...props}
-  />
-);
 const LOST =
   "Graphics stopped (WebGL context lost), so the 3D view is paused. It restarts if the browser restores graphics; otherwise reload the page.";
 
 /** Required labels (schematic layout, illustrative state, model credits) in one chip; details open on demand. */
 interface ProvenanceChipProps {
-  models: boolean;
+  meshes: MeshMode;
   ambient: boolean;
 }
 
-const ProvenanceChip = ({ models, ambient }: ProvenanceChipProps) => (
+const ProvenanceChip = ({ meshes, ambient }: ProvenanceChipProps) => (
   <details className={`${PILL} group max-w-full text-[11px]`}>
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-1.5 px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
       <span className="font-mono uppercase tracking-wider text-amber-300">
@@ -81,6 +69,14 @@ const ProvenanceChip = ({ models, ambient }: ProvenanceChipProps) => (
         <>
           <span className="text-zinc-500">·</span>
           <span className="text-sky-200">Ambient motion: illustrative</span>
+        </>
+      )}
+      {meshes === "failed" && (
+        <>
+          <span className="text-zinc-500">·</span>
+          <span className="text-amber-300">
+            Models failed; primitives shown
+          </span>
         </>
       )}
       <span className="text-zinc-500">·</span>
@@ -101,7 +97,7 @@ const ProvenanceChip = ({ models, ambient }: ProvenanceChipProps) => (
         </p>
       )}
       <p className="[&_a]:underline">
-        {models ? "Models: " : "Models (off): "}
+        {CREDIT_LEAD[meshes]}
         <a
           href="https://poly.pizza/m/DTQBuenKJY"
           target="_blank"
@@ -128,23 +124,20 @@ const ProvenanceChip = ({ models, ambient }: ProvenanceChipProps) => (
 );
 
 export const SceneOverlay = ({
-  roof,
-  lens,
   meshes,
   graphicsLost,
   exceptions,
   selected,
   ambient,
+  canFollow,
+  following,
   onSelect,
-  onToggleRoof,
-  onToggleMeshes,
-  onToggleLens,
-  onReset,
+  onToggleFollow,
 }: SceneOverlayProps) => (
   // One wrapping row, so the required labels never sit under the controls;
   // above the drawers so a tall wrapped row stays visible.
   <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex flex-wrap-reverse items-end justify-between gap-1.5">
-    <ProvenanceChip models={meshes === "models"} ambient={ambient} />
+    <ProvenanceChip meshes={meshes} ambient={ambient} />
     <div className="ml-auto flex max-w-full flex-wrap-reverse items-end justify-end gap-1.5">
       <div
         aria-live="polite"
@@ -166,6 +159,24 @@ export const SceneOverlay = ({
             )}
       </div>
       <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1">
+        {(canFollow || following) && (
+          <TextureButton
+            variant={following ? "primary" : "minimal"}
+            size="sm"
+            className="w-auto"
+            onClick={onToggleFollow}
+            disabled={graphicsLost}
+            aria-pressed={following}
+            title={
+              following
+                ? "Stop following (F or Esc)"
+                : "Chase this truck (F); [ and ] switch trucks"
+            }
+          >
+            <Crosshair className="size-3.5" />
+            {following ? "Following" : "Follow"}
+          </TextureButton>
+        )}
         <select
           aria-label="Select an entity in an exception state"
           className={SELECT}
@@ -182,44 +193,6 @@ export const SceneOverlay = ({
             </option>
           ))}
         </select>
-        <Toggle
-          on={lens}
-          onClick={onToggleLens}
-          disabled={graphicsLost}
-          title="Tilt-shift miniature lens; the sharp band follows the selection"
-        >
-          <Aperture className={ICON} />
-          Lens
-        </Toggle>
-        <Toggle
-          on={roof}
-          onClick={onToggleRoof}
-          disabled={graphicsLost}
-          title={roof ? "Hide the roof" : "Show the roof"}
-        >
-          <House className={ICON} />
-          Roof
-        </Toggle>
-        <Toggle
-          on={meshes !== "off"}
-          onClick={onToggleMeshes}
-          disabled={graphicsLost}
-          title={MESH_TITLE[meshes]}
-        >
-          <Box className={ICON} />
-          {MESH_LABEL[meshes]}
-        </Toggle>
-        <TextureButton
-          variant="minimal"
-          size="sm"
-          className="w-auto"
-          onClick={onReset}
-          disabled={graphicsLost}
-          title="Frame the whole site again"
-        >
-          <RotateCcw className={ICON} />
-          Reset
-        </TextureButton>
       </div>
     </div>
   </div>

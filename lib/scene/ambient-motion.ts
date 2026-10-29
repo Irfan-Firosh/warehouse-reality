@@ -40,7 +40,7 @@ export const quantize = (t: number, speed: DisplaySpeed): number => {
 };
 
 // Visual pacing only, in display ft/s and s.
-const TRUCK_PACE = 15;
+export const TRUCK_PACE = 15;
 const FORKLIFT_PACE = 6;
 const MOVE_HOLD = 6;
 const SHUTTLE_HOLD = 20;

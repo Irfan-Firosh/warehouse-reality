@@ -188,21 +188,41 @@ export const fitCamera = (
 export const CHASE_DISTANCE = 250;
 export const CHASE_PITCH = DEG * 35;
 
-/** A camera behind a vehicle's nose, looking down at it at `pitch`, `distance` ft away. */
+/**
+ * A camera `distance` ft from a vehicle at `pitch`, on the side `azimuth`
+ * points to (the same convention as `viewDirection`: 0 looks from +z).
+ */
 export const chasePose = (
   target: Placement,
+  azimuth: number,
   distance: number = CHASE_DISTANCE,
   pitch: number = CHASE_PITCH,
 ): CameraPose => {
-  const back = distance * Math.cos(pitch);
+  const out = distance * Math.cos(pitch);
   return {
     position: [
-      target.x - Math.sin(target.rotY) * back,
+      target.x + Math.sin(azimuth) * out,
       target.y + distance * Math.sin(pitch),
-      target.z - Math.cos(target.rotY) * back,
+      target.z + Math.cos(azimuth) * out,
     ],
     target: [target.x, target.y, target.z],
   };
+};
+
+const SOUTH_SIDE = MINIATURE_VIEW.azimuth;
+const NORTH_SIDE = Math.PI - MINIATURE_VIEW.azimuth;
+/** How far (ft) past z = 0 a vehicle goes before the chase swaps yard sides, so it never flickers at the line. */
+export const CHASE_SWAP_FT = 100;
+
+/**
+ * Chase from the yard side a vehicle is on, so the building never stands
+ * between camera and truck. With `current`, the side only swaps once the
+ * vehicle is `CHASE_SWAP_FT` into the other yard.
+ */
+export const chaseAzimuth = (target: Placement, current?: number): number => {
+  if (current === SOUTH_SIDE && target.z > -CHASE_SWAP_FT) return SOUTH_SIDE;
+  if (current === NORTH_SIDE && target.z < CHASE_SWAP_FT) return NORTH_SIDE;
+  return target.z >= 0 ? SOUTH_SIDE : NORTH_SIDE;
 };
 
 /** Straight down (just shy of 90° so the orbit controls keep a stable up vector). */
