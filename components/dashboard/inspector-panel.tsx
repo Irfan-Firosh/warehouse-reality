@@ -1,9 +1,11 @@
 "use client";
 
-import type { AgentState, DeliberationResult } from "@/lib/agents/types";
-import type { CommitmentEntity } from "@/lib/engine/types";
+import type { DashboardView } from "@/lib/dashboard/project-run";
+import type { SceneState } from "@/lib/scene/types";
 import type { TabKey } from "@/types/dashboard";
+import type { ModelCall } from "@/types/run";
 import { AgentTab } from "./tabs/agent-tab";
+import { CallsTab } from "./tabs/calls-tab";
 import { CommitmentTab } from "./tabs/commitment-tab";
 import { EntitiesTab } from "./tabs/entities-tab";
 import { EvidenceTab } from "./tabs/evidence-tab";
@@ -15,14 +17,23 @@ interface InspectorPanelProps {
   onToggle: () => void;
   onSelectTab: (tab: TabKey) => void;
   onSelectEntity: (id: string) => void;
-  agents?: AgentState[];
-  activeAgentId?: string;
-  onSelectAgent?: (id: string) => void;
-  onTriggerDeliberation?: (id?: string) => Promise<unknown>;
-  isDeliberating?: boolean;
-  lastDeliberation?: DeliberationResult | null;
-  commitments?: CommitmentEntity[];
+  /** The run's view; null before a run exists. */
+  view: DashboardView | null;
+  /** Every model call of the run. */
+  calls: readonly ModelCall[];
+  /** The state the scene draws. */
+  scene: SceneState;
+  activeAgentId: string | null;
+  onSelectAgent: (id: string) => void;
 }
+
+const TABS: readonly { key: TabKey; label: string }[] = [
+  { key: "agent", label: "Agents" },
+  { key: "commitment", label: "Commits" },
+  { key: "calls", label: "Calls" },
+  { key: "evidence", label: "Evidence" },
+  { key: "entities", label: "Entities" },
+];
 
 export const InspectorPanel = ({
   isOpen,
@@ -31,12 +42,11 @@ export const InspectorPanel = ({
   onToggle,
   onSelectTab,
   onSelectEntity,
-  agents,
+  view,
+  calls,
+  scene,
   activeAgentId,
   onSelectAgent,
-  onTriggerDeliberation,
-  isDeliberating,
-  lastDeliberation,
 }: InspectorPanelProps) => {
   if (!isOpen) return null;
 
@@ -45,24 +55,16 @@ export const InspectorPanel = ({
       aria-label="Inspector"
       className="pointer-events-auto absolute inset-y-0 right-0 flex w-80 max-w-full flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white/95 shadow-lg backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95"
     >
-      {/* Tab Header */}
       <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/20">
         <div role="tablist" className="flex flex-1 text-xs">
-          {(
-            [
-              { key: "agent", label: "Agent" },
-              { key: "commitment", label: "Commitment" },
-              { key: "evidence", label: "Evidence" },
-              { key: "entities", label: "Entities" },
-            ] as const
-          ).map(({ key, label }) => (
+          {TABS.map(({ key, label }) => (
             <button
               key={key}
               type="button"
               role="tab"
               aria-selected={activeTab === key}
               onClick={() => onSelectTab(key)}
-              className={`px-3 py-2 font-medium transition-colors border-b-2 ${
+              className={`px-2 py-2 font-medium transition-colors border-b-2 ${
                 activeTab === key
                   ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
                   : "border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300"
@@ -82,26 +84,26 @@ export const InspectorPanel = ({
         </button>
       </div>
 
-      {/* Tab Body */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === "agent" && (
           <AgentTab
-            onSelectEntity={onSelectEntity}
-            onSwitchTab={() => onSelectTab("commitment")}
-            agents={agents}
+            view={view}
+            calls={calls}
             activeAgentId={activeAgentId}
             onSelectAgent={onSelectAgent}
-            onTriggerDeliberation={onTriggerDeliberation}
-            isDeliberating={isDeliberating}
-            lastDeliberation={lastDeliberation}
+            onSelectEntity={onSelectEntity}
+            onSwitchTab={() => onSelectTab("commitment")}
           />
         )}
         {activeTab === "commitment" && (
-          <CommitmentTab onSelectEntity={onSelectEntity} />
+          <CommitmentTab run={view} onSelectEntity={onSelectEntity} />
         )}
+        {activeTab === "calls" && <CallsTab view={view} calls={calls} />}
         {activeTab === "evidence" && <EvidenceTab />}
         {activeTab === "entities" && (
           <EntitiesTab
+            state={scene}
+            fromRun={view !== null}
             selectedId={selectedId}
             onSelectEntity={onSelectEntity}
           />

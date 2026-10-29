@@ -45,6 +45,8 @@ interface MotionClockProps {
   version: RefObject<number>;
   clock: RefObject<DisplayClock>;
   on: boolean;
+  /** Freezes the display clock where it is (display pacing only). */
+  paused?: boolean;
   speed: DisplaySpeed;
 }
 
@@ -59,6 +61,7 @@ export const MotionClock = ({
   version,
   clock,
   on,
+  paused = false,
   speed,
 }: MotionClockProps) => {
   const written = useRef<{
@@ -74,7 +77,7 @@ export const MotionClock = ({
       c.t = c.shown;
       c.speed = speed;
     }
-    if (on) c.t += Math.min(delta, MAX_STEP_S) * speed;
+    if (on && !paused) c.t += Math.min(delta, MAX_STEP_S) * speed;
     c.shown = c.base + quantize(c.t - c.base, speed);
 
     const last = written.current;

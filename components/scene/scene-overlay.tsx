@@ -33,6 +33,8 @@ const CREDIT_LEAD: Readonly<Record<MeshMode, string>> = {
 
 interface SceneOverlayProps {
   meshes: MeshMode;
+  /** The scene draws a server run's engine state, not the illustrative one. */
+  fromRun: boolean;
   graphicsLost: boolean;
   exceptions: readonly ExceptionOption[];
   selected: Entity | undefined;
@@ -54,17 +56,22 @@ const LOST =
 /** Required labels (schematic layout, illustrative state, model credits) in one chip; details open on demand. */
 interface ProvenanceChipProps {
   meshes: MeshMode;
+  fromRun: boolean;
   ambient: boolean;
 }
 
-const ProvenanceChip = ({ meshes, ambient }: ProvenanceChipProps) => (
+const ProvenanceChip = ({ meshes, fromRun, ambient }: ProvenanceChipProps) => (
   <details className={`${PILL} group max-w-full text-[11px]`}>
     <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-1.5 px-2.5 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
       <span className="font-mono uppercase tracking-wider text-amber-300">
         Schematic layout
       </span>
       <span className="text-zinc-500">·</span>
-      <span className="text-sky-200">Illustrative state</span>
+      {fromRun ? (
+        <span className="text-lime-200">Engine run state</span>
+      ) : (
+        <span className="text-sky-200">Illustrative state</span>
+      )}
       {ambient && (
         <>
           <span className="text-zinc-500">·</span>
@@ -89,7 +96,14 @@ const ProvenanceChip = ({ meshes, ambient }: ProvenanceChipProps) => (
         Door and stall positions are not surveyed. DFW Commerce Center Building
         I · 182 doors · 4 ramps · 235 trailer spaces (S1).
       </p>
-      <p>Illustrative run state · not facility data or results.</p>
+      {fromRun ? (
+        <p>
+          Door, stall, trailer and equipment statuses come from the server
+          run&apos;s engine snapshot. Scenario values, not facility data.
+        </p>
+      ) : (
+        <p>Illustrative run state · not facility data or results.</p>
+      )}
       {ambient && (
         <p>
           Ambient motion is decoration: trucks and forklifts move on a display
@@ -125,6 +139,7 @@ const ProvenanceChip = ({ meshes, ambient }: ProvenanceChipProps) => (
 
 export const SceneOverlay = ({
   meshes,
+  fromRun,
   graphicsLost,
   exceptions,
   selected,
@@ -137,7 +152,7 @@ export const SceneOverlay = ({
   // One wrapping row, so the required labels never sit under the controls;
   // above the drawers so a tall wrapped row stays visible.
   <div className="pointer-events-none absolute inset-x-3 bottom-3 z-30 flex flex-wrap-reverse items-end justify-between gap-1.5">
-    <ProvenanceChip meshes={meshes} ambient={ambient} />
+    <ProvenanceChip meshes={meshes} fromRun={fromRun} ambient={ambient} />
     <div className="ml-auto flex max-w-full flex-wrap-reverse items-end justify-end gap-1.5">
       <div
         aria-live="polite"

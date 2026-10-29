@@ -127,3 +127,15 @@ export const disruptionResponse = (
   const base = stepResponse(res);
   return refused ? { ...base, error: `DISRUPTION_REFUSED: ${refused}` } : base;
 };
+
+const STATUS_LABEL: Readonly<Record<RunStatus, string>> = {
+  none: "No run yet",
+  loading: "Loading run",
+  ready: "Run ready",
+  missing: "Run not found",
+  error: "Run error",
+};
+
+/** What the top bar says about the run, from the hook status, not the clock. */
+export const runStatusLabel = (status: RunStatus, busy: boolean): string =>
+  busy ? "Run request in flight" : STATUS_LABEL[status];

@@ -9,7 +9,11 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { CreateRunBody, DisruptionBody } from "@/lib/run/api-schemas";
+import type {
+  CreateRunBody,
+  DisruptionBody,
+  StepBody,
+} from "@/lib/run/api-schemas";
 import type { RunSnapshot } from "@/types/run";
 import { type DashboardView, projectRun, type RunStatus } from "./project-run";
 import {
@@ -49,7 +53,8 @@ export interface UseRunResult {
   /** Last server error code or client message; null after a clean success. */
   error: string | null;
   start(mode: CreateRunBody["mode"]): Promise<RunActionResult>;
-  step(): Promise<RunActionResult>;
+  /** Without maxTurns the server applies its default. */
+  step(maxTurns?: StepBody["maxTurns"]): Promise<RunActionResult>;
   disrupt(body: DisruptionBody): Promise<RunActionResult>;
   replay(url: string): Promise<RunActionResult>;
   /** Re-reads the live run from the server, e.g. after an error. */
@@ -105,11 +110,11 @@ export const useRun = (): UseRunResult => {
   );
 
   const step = useCallback(
-    () =>
+    (maxTurns?: StepBody["maxTurns"]) =>
       perform(
         "step",
         withRun(async (runId) =>
-          stepResponse(await stepRunRequest(browserFetch, runId)),
+          stepResponse(await stepRunRequest(browserFetch, runId, maxTurns)),
         ),
       ),
     [perform],

@@ -1,13 +1,36 @@
 "use client";
 
 import { TextureButton } from "@/components/ui/texture-button";
+import type { DisruptionBody } from "@/lib/run/api-schemas";
 import { ProvenanceBadge } from "./provenance-badge";
 
 interface DisruptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInject: (disruptionId: string) => void;
+  onInject: (body: DisruptionBody) => void;
 }
+
+interface DisruptionOption {
+  body: DisruptionBody;
+  title: string;
+  detail: string;
+}
+
+// The run names each injection (H-1, H-2, …) in its timeline.
+const OPTIONS: readonly DisruptionOption[] = [
+  {
+    body: { type: "dock_closure", targetId: "D-108" },
+    title: "Dock door closure · D-108",
+    detail:
+      "Closes D-108 while T-2291 is mid-unload there (scenario values). No reopening time is modeled. The engine wakes the dock lead and driver.",
+  },
+  {
+    body: { type: "equipment_failure", targetId: "F-07" },
+    title: "Equipment failure · F-07",
+    detail:
+      "Forklift F-07 fails and the engine marks it failed. Agents wake only when one is assigned to the target.",
+  },
+];
 
 export const DisruptionModal = ({
   isOpen,
@@ -28,12 +51,13 @@ export const DisruptionModal = ({
           <div className="flex items-center gap-2">
             <span className="text-amber-500 font-bold">⚡</span>
             <h2 id="disruption-title" className="font-semibold text-sm">
-              Inject Hypothetical Disruption
+              Inject a hypothetical disruption
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="rounded px-1.5 py-0.5 text-xs text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
             ✕
@@ -41,81 +65,38 @@ export const DisruptionModal = ({
         </div>
 
         <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-          Hypothetical disruptions are rehearsal interventions selected by the
-          operator. They test whether autonomous operational agents detect the
-          capacity conflict and negotiate feasible alternatives through the
-          authoritative engine.
+          A rehearsal intervention chosen by the operator, not an observed
+          event. It goes to the server run; the engine applies or refuses it,
+          and the agents negotiate through engine tool calls.
         </p>
 
         <div className="space-y-2">
-          {/* H-1 */}
-          <div className="rounded-md border border-amber-500/40 bg-amber-50/50 p-2.5 dark:bg-amber-950/20 text-xs">
-            <div className="flex justify-between items-baseline mb-1">
-              <span className="font-semibold text-amber-900 dark:text-amber-200">
-                Dock Door Closure (H-1)
-              </span>
-              <ProvenanceBadge kind="hyp">injected</ProvenanceBadge>
-            </div>
-            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
-              Close dock door D-108 for 2 hours (14:00–16:00). Pauses active
-              unloading on trailer T-2291, forcing agents to negotiate
-              reassignment.
-            </p>
-            <TextureButton
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                onInject("H-1");
-                onClose();
-              }}
+          {OPTIONS.map((o) => (
+            <div
+              key={`${o.body.type}-${o.body.targetId}`}
+              className="rounded-md border border-amber-500/40 bg-amber-50/50 p-2.5 text-xs dark:bg-amber-950/20"
             >
-              Apply H-1 Disruption
-            </TextureButton>
-          </div>
-
-          {/* H-2 */}
-          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/40 text-xs">
-            <div className="flex justify-between items-baseline mb-1">
-              <span className="font-semibold">Equipment Outage (H-2)</span>
-              <ProvenanceBadge kind="hyp">ready</ProvenanceBadge>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="font-semibold text-amber-900 dark:text-amber-200">
+                  {o.title}
+                </span>
+                <ProvenanceBadge kind="hyp">hypothetical</ProvenanceBadge>
+              </div>
+              <p className="mb-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                {o.detail}
+              </p>
+              <TextureButton
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onInject(o.body);
+                  onClose();
+                }}
+              >
+                Apply
+              </TextureButton>
             </div>
-            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
-              Declare forklift F-07 hydraulic fault. Releases active pallet task
-              and requires crew lead reassignment.
-            </p>
-            <TextureButton
-              variant="minimal"
-              size="sm"
-              onClick={() => {
-                onInject("H-2");
-                onClose();
-              }}
-            >
-              Apply H-2 Disruption
-            </TextureButton>
-          </div>
-
-          {/* H-3 */}
-          <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-950/40 text-xs">
-            <div className="flex justify-between items-baseline mb-1">
-              <span className="font-semibold">Driver Delay (H-3)</span>
-              <ProvenanceBadge kind="hyp">ready</ProvenanceBadge>
-            </div>
-            <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mb-2">
-              Driver DRV-047 reports 45 min highway delay; triggers slot swap
-              proposal with waiting carrier.
-            </p>
-            <TextureButton
-              variant="minimal"
-              size="sm"
-              onClick={() => {
-                onInject("H-3");
-                onClose();
-              }}
-            >
-              Apply H-3 Disruption
-            </TextureButton>
-          </div>
+          ))}
         </div>
 
         <div className="flex justify-end pt-1">

@@ -3,9 +3,14 @@
 import { useMemo, useState } from "react";
 import { getEntitiesForFilter } from "@/lib/dashboard/data";
 import { statusText } from "@/lib/scene/status-text";
+import type { SceneState } from "@/lib/scene/types";
 import type { EntityFilter } from "@/types/dashboard";
+import { ProvenanceBadge } from "../provenance-badge";
 
 interface EntitiesTabProps {
+  /** The state the scene draws: the run's, or the illustrative one. */
+  state: SceneState;
+  fromRun: boolean;
   selectedId: string | null;
   onSelectEntity: (id: string) => void;
 }
@@ -18,12 +23,17 @@ const FILTER_LABELS: Record<EntityFilter, string> = {
 };
 
 export const EntitiesTab = ({
+  state,
+  fromRun,
   selectedId,
   onSelectEntity,
 }: EntitiesTabProps) => {
   const [filter, setFilter] = useState<EntityFilter>("doors");
 
-  const entities = useMemo(() => getEntitiesForFilter(filter), [filter]);
+  const entities = useMemo(
+    () => getEntitiesForFilter(filter, state),
+    [filter, state],
+  );
 
   return (
     <div className="flex h-full flex-col p-3 text-xs gap-2">
@@ -44,8 +54,13 @@ export const EntitiesTab = ({
             </button>
           ))}
         </div>
-        <span className="text-[11px] text-zinc-400 font-mono">
+        <span className="flex items-center gap-1 text-[11px] text-zinc-400 font-mono">
           {entities.length} items
+          {fromRun ? (
+            <ProvenanceBadge kind="eng">engine</ProvenanceBadge>
+          ) : (
+            <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+          )}
         </span>
       </div>
 

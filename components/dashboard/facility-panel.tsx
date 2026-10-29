@@ -1,14 +1,26 @@
 "use client";
 
 import { DEPENDENCIES, UNKNOWN_DFW_FIELDS } from "@/lib/dashboard/data";
+import type { RunCounts } from "@/lib/dashboard/project-run";
 import { S1 } from "@/lib/scene/facility";
-import type { DashboardCounts, ProvenanceKind } from "@/types/dashboard";
+import type { DoorStatus, SceneState } from "@/lib/scene/types";
+import type { ProvenanceKind } from "@/types/dashboard";
+import type { RunSnapshot } from "@/types/run";
 import { ProvenanceBadge } from "./provenance-badge";
+
+/** The run the counts come from; null while the panel shows illustrative counts. */
+export interface FacilityRun {
+  runId: string;
+  mode: RunSnapshot["mode"];
+  stateVersion: number;
+}
 
 interface FacilityPanelProps {
   isOpen: boolean;
-  counts: DashboardCounts;
-  stateVersion: number;
+  counts: RunCounts;
+  run: FacilityRun | null;
+  /** The state the scene draws, for the closed and reserved door lists. */
+  scene: SceneState;
   onToggle: () => void;
   onSelectEntity: (id: string) => void;
   onOpenEvidence: () => void;
@@ -20,22 +32,30 @@ const LEGEND: readonly {
   meaning: string;
 }[] = [
   { kind: "src", badge: "S1", meaning: "published spec" },
+  { kind: "eng", badge: "engine", meaning: "engine · scenario values" },
   { kind: "drv", badge: "derived", meaning: "derived conversion" },
   { kind: "hyp", badge: "hypothetical", meaning: "injected" },
   { kind: "unk", badge: "unknown", meaning: "no evidence" },
   { kind: "ill", badge: "illus→sim", meaning: "placeholder" },
 ];
 
-/** Engine banner, profile, workload and provenance legend; moved here from the old top bar and banner. */
+const MODE_LABEL: Readonly<Record<RunSnapshot["mode"], string>> = {
+  live: "Agents (live mode) · FCFS fallback",
+  baseline: "First-come rules (baseline)",
+  replay: "Recorded replay · no model calls",
+};
+
+/** Run banner, profile, workload and provenance legend. */
 interface RunContextProps {
-  stateVersion: number;
+  run: FacilityRun | null;
 }
 
-const RunContext = ({ stateVersion }: RunContextProps) => (
+const RunContext = ({ run }: RunContextProps) => (
   <div className="space-y-1.5 text-zinc-700 dark:text-zinc-300">
     <p className="rounded-md border border-dashed border-amber-500/60 bg-amber-50/50 px-2 py-1 text-[11px] text-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
-      Live Simulation State: engine v{stateVersion} · DFW S1 physical invariants
-      enforced.
+      {run
+        ? `Server run ${run.runId.slice(0, 8)} · engine v${run.stateVersion} · counts from the engine snapshot.`
+        : "No run yet · illustrative state, not facility data. Run the D-108 scenario to load engine state."}
     </p>
     <div className="flex items-center justify-between">
       <span>Profile</span>
@@ -51,7 +71,7 @@ const RunContext = ({ stateVersion }: RunContextProps) => (
     </div>
     <div className="flex items-center justify-between">
       <span>Run mode</span>
-      <span className="font-medium">Distributed agents · FCFS fallback</span>
+      <span className="font-medium">{run ? MODE_LABEL[run.mode] : "none"}</span>
     </div>
     <ul className="flex flex-wrap gap-x-2 gap-y-1 pt-1 text-[11px]">
       {LEGEND.map(({ kind, badge, meaning }) => (
@@ -64,15 +84,50 @@ const RunContext = ({ stateVersion }: RunContextProps) => (
   </div>
 );
 
+const doorsWith = (scene: SceneState, status: DoorStatus): string[] =>
+  scene.doors.filter((d) => d.status === status).map((d) => d.id);
+
+interface DoorLinksProps {
+  ids: readonly string[];
+  className: string;
+  onSelectEntity: (id: string) => void;
+}
+
+const DoorLinks = ({ ids, className, onSelectEntity }: DoorLinksProps) =>
+  ids.length === 0 ? (
+    <span className="text-zinc-400">none</span>
+  ) : (
+    ids.map((id, i) => (
+      <span key={id}>
+        {i > 0 && " "}
+        <button
+          type="button"
+          onClick={() => onSelectEntity(id)}
+          className={`font-mono underline ${className}`}
+        >
+          {id}
+        </button>
+      </span>
+    ))
+  );
+
 export const FacilityPanel = ({
   isOpen,
   counts,
-  stateVersion,
+  run,
+  scene,
   onToggle,
   onSelectEntity,
   onOpenEvidence,
 }: FacilityPanelProps) => {
   if (!isOpen) return null;
+  const stateBadge = run ? (
+    <ProvenanceBadge kind="eng" title="Counted from the run's engine snapshot">
+      engine
+    </ProvenanceBadge>
+  ) : (
+    <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+  );
 
   return (
     <aside
@@ -94,7 +149,7 @@ export const FacilityPanel = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
-        <RunContext stateVersion={stateVersion} />
+        <RunContext run={run} />
         {/* Published Capacity */}
         <details open className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between font-semibold uppercase tracking-wider text-[11px] text-zinc-500 dark:text-zinc-400 mb-1">
@@ -182,9 +237,9 @@ export const FacilityPanel = ({
               <span className="transition-transform group-open:rotate-90">
                 ▸
               </span>
-              Live Occupancy
+              Occupancy Now
             </span>
-            <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+            {stateBadge}
           </summary>
           <div className="space-y-1 text-zinc-700 dark:text-zinc-300">
             <div className="flex justify-between">
@@ -194,29 +249,29 @@ export const FacilityPanel = ({
               </span>
             </div>
             <div className="flex justify-between text-zinc-500 dark:text-zinc-400 text-[11px]">
-              <span>serving · blocked</span>
+              <span>{run ? "serving · closed" : "serving · blocked"}</span>
               <span className="font-mono">
                 {counts.doorsServing} · {counts.doorsBlocked}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span>Closed · reserved</span>
-              <span className="font-mono">
-                <button
-                  type="button"
-                  onClick={() => onSelectEntity("D-108")}
-                  className="text-amber-600 dark:text-amber-400 underline font-mono"
-                >
-                  D-108
-                </button>{" "}
-                ·{" "}
-                <button
-                  type="button"
-                  onClick={() => onSelectEntity("D-112")}
-                  className="text-blue-600 dark:text-blue-400 underline font-mono"
-                >
-                  D-112
-                </button>
+            <div className="flex justify-between gap-2">
+              <span>Closed</span>
+              <span className="text-right font-mono">
+                <DoorLinks
+                  ids={doorsWith(scene, "closed")}
+                  className="text-amber-600 dark:text-amber-400"
+                  onSelectEntity={onSelectEntity}
+                />
+              </span>
+            </div>
+            <div className="flex justify-between gap-2">
+              <span>Reserved</span>
+              <span className="text-right font-mono">
+                <DoorLinks
+                  ids={doorsWith(scene, "reserved")}
+                  className="text-blue-600 dark:text-blue-400"
+                  onSelectEntity={onSelectEntity}
+                />
               </span>
             </div>
             <div className="flex justify-between">
@@ -244,7 +299,7 @@ export const FacilityPanel = ({
               </span>
               Queues & Dependencies
             </span>
-            <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+            {stateBadge}
           </summary>
           <div className="space-y-1 text-zinc-700 dark:text-zinc-300">
             <div className="flex justify-between">
@@ -257,23 +312,34 @@ export const FacilityPanel = ({
             </div>
             <div className="flex justify-between font-medium text-amber-700 dark:text-amber-400">
               <span>Outbound blocked freight</span>
-              <span className="font-mono">{counts.outboundBlocked}</span>
+              {counts.outboundBlocked === null ? (
+                <ProvenanceBadge
+                  kind="unk"
+                  title="The engine does not model outbound freight"
+                >
+                  unknown
+                </ProvenanceBadge>
+              ) : (
+                <span className="font-mono">{counts.outboundBlocked}</span>
+              )}
             </div>
 
-            <ul className="space-y-1 border-l-2 border-amber-400/50 pl-2 text-[11px] text-zinc-600 dark:text-zinc-400">
-              {DEPENDENCIES.map((dep) => (
-                <li key={dep.door} className="leading-snug">
-                  <button
-                    type="button"
-                    onClick={() => onSelectEntity(dep.door)}
-                    className="font-mono text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    {dep.door}
-                  </button>{" "}
-                  needs {dep.shipment} · {dep.reason}
-                </li>
-              ))}
-            </ul>
+            {run === null && (
+              <ul className="space-y-1 border-l-2 border-amber-400/50 pl-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                {DEPENDENCIES.map((dep) => (
+                  <li key={dep.door} className="leading-snug">
+                    <button
+                      type="button"
+                      onClick={() => onSelectEntity(dep.door)}
+                      className="font-mono text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {dep.door}
+                    </button>{" "}
+                    needs {dep.shipment} · {dep.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </details>
 

@@ -2,15 +2,13 @@ import {
   ILLUSTRATIVE_STATE,
   MOVING_TRAILER,
 } from "@/lib/scene/illustrative-state";
-import type { Entity } from "@/lib/scene/types";
+import type { Entity, SceneState } from "@/lib/scene/types";
 import type {
   DashboardCounts,
   Dependency,
   EvidenceRecord,
   TimelineEvent,
 } from "@/types/dashboard";
-
-export const LOGICAL_TIME = "14:07:30";
 
 export const DEPENDENCIES: readonly Dependency[] = [
   {
@@ -175,10 +173,11 @@ export const calculateDashboardCounts = (): DashboardCounts => {
   };
 };
 
+/** Entities of one kind from the state on screen (the run's, or the illustrative one). */
 export const getEntitiesForFilter = (
   filter: "doors" | "stalls" | "trailers" | "equipment",
+  state: SceneState,
 ): readonly Entity[] => {
-  const state = ILLUSTRATIVE_STATE;
   switch (filter) {
     case "doors":
       return [...state.doors, ...state.ramps];

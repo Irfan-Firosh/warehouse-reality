@@ -160,3 +160,15 @@ export const sceneStateFromEngine = (s: EngineSnapshot): SceneState => {
     forklifts,
   };
 };
+
+/**
+ * The previous scene state when the new one has the same content, so a run
+ * update that moved nothing keeps the layout, motion and live poses as they are.
+ */
+export const keepSameScene = (
+  prev: SceneState | undefined,
+  next: SceneState,
+): SceneState =>
+  prev !== undefined && JSON.stringify(prev) === JSON.stringify(next)
+    ? prev
+    : next;
