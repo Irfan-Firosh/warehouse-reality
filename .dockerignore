@@ -1,0 +1,15 @@
+node_modules
+.next
+.env*
+.git
+.github
+.beads
+.playwright-mcp
+sim-demo-film
+docs/mockups
+coverage
+.vercel
+*.tsbuildinfo
+.DS_Store
+Dockerfile
+.dockerignore
