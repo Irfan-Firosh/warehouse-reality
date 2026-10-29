@@ -122,4 +122,35 @@ describe("Nebius inference provenance and failure boundaries", () => {
     expect(result.isMock).toBe(true);
     expect(result.modelUsed).toBe("fallback-on-error");
   });
+
+  it.each([
+    [
+      "an HTTP error body",
+      () =>
+        new Response(`bad key nebius-test-key ${"x".repeat(500)}`, {
+          status: 401,
+        }),
+    ],
+    [
+      "a thrown error",
+      () => {
+        throw new Error(`socket closed for nebius-test-key ${"x".repeat(500)}`);
+      },
+    ],
+  ])("redacts the key and truncates %s in logs", async (_label, respond) => {
+    vi.stubEnv("NEBIUS_API_KEY", "nebius-test-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => respond()),
+    );
+
+    await deliberate();
+
+    const warn = vi.mocked(console.warn);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const logged = warn.mock.calls[0].map(String).join(" ");
+    expect(logged).not.toContain("nebius-test-key");
+    expect(logged).toContain("[redacted]");
+    expect(logged.length).toBeLessThan(400);
+  });
 });

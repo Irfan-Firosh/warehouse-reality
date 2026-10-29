@@ -305,6 +305,7 @@ it("requires source URLs to be URLs", () =>
   - `missing NEBIUS_API_KEY → fallbackReason "no_api_key"`
 - [ ] **Step 2: Run.** Expected: FAIL.
 - [ ] **Step 3: Implement.** Keep `fallbackLocalDeliberation` as the fallback body. Never put the key in thrown messages.
+  - Deviation: the fallback body is `BaselineDeliberator` (A8), labeled as a fallback, because lane A's `authorize` rejects `fallbackLocalDeliberation`'s trailer reservation and uncommitted move.
 - [ ] **Step 4: Run `pnpm check`.** Expected: PASS.
 - [ ] **Step 5: Commit** `feat: decide agent turns with tiered Nemotron and honest fallback`
 
