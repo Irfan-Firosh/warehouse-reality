@@ -361,7 +361,9 @@ it("requires source URLs to be URLs", () =>
 
 **Files:** Merge `origin/feat/polish-ui` (Tavily client, provenance and UI polish). Resolve conflicts in favor of `useRun`. Modify the Tavily route so a chosen result calls `POST /api/runs/:id/disruptions` with `{ type: "external_delay", targetId, sources }`.
 
-- [ ] **Step 1:** `git merge origin/feat/polish-ui` and resolve conflicts. Run `pnpm check` → PASS.
+**Contract change (server half landed on `feat/tavily-scout`):** do not merge `origin/feat/polish-ui`; its Tavily contract (`source: tavily|fixture`, `disruptions`, `suggestedAction`, `fallbackReason`) is replaced by `lib/external/disruption-types.ts` (`source`, `results`, `label`, `reason`). The client half ports `components/dashboard/disruption-modal.tsx` and the timeline auto-scroll in `components/dashboard/causal-timeline.tsx` from that branch onto the new contract, posts `toDisruptionBody(result, targetId)` to the run, handles 429 `RATE_LIMITED`, and shows `ILLUSTRATIVE_INJECTION_NOTE` beside injected fixtures. Do not take its `lib/external/*`, `app/api/disruptions/*`, `lib/engine/*` or `use-simulation` changes.
+
+- [ ] **Step 1:** (Superseded by the note above.) Port the polish-ui modal and timeline onto the new contract. Run `pnpm check` → PASS.
 - [ ] **Step 2: Failing test** in `lib/external/tavily-client.test.ts`: `fixture results are labeled "illustrative", never "external_search"`, and `live results carry source URLs into DisruptionBody.sources`.
 - [ ] **Step 3: Implement the fix.** Run → PASS.
 - [ ] **Step 4:** In the browser, inject a Tavily-sourced hypothetical. The timeline shows `external_search` with clickable sources and a "hypothetical" label.
