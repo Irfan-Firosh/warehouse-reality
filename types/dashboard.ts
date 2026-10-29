@@ -1,6 +1,7 @@
-export type ProvenanceKind = "src" | "drv" | "hyp" | "unk" | "ill";
+/** src: published spec (S1) · eng: engine/scenario values of a run · drv · hyp · unk · ill. */
+export type ProvenanceKind = "src" | "eng" | "drv" | "hyp" | "unk" | "ill";
 
-export type TabKey = "agent" | "commitment" | "evidence" | "entities";
+export type TabKey = "agent" | "commitment" | "calls" | "evidence" | "entities";
 
 export type EntityFilter = "doors" | "stalls" | "trailers" | "equipment";
 

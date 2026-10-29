@@ -4,7 +4,11 @@
  */
 
 import type { z } from "zod";
-import type { CreateRunBody, DisruptionBody } from "@/lib/run/api-schemas";
+import type {
+  CreateRunBody,
+  DisruptionBody,
+  StepBody,
+} from "@/lib/run/api-schemas";
 import type { RunSnapshot, StepResult } from "@/types/run";
 import { nextStatus, type RunStatus } from "./project-run";
 import { RunSnapshotSchema, StepResultSchema } from "./run-snapshot-schema";
@@ -36,6 +40,9 @@ const errorCode = async (res: Response): Promise<string> => {
   return `HTTP_${res.status}`;
 };
 
+/** Prefix of the error when the request never got a response. */
+export const NETWORK_ERROR = "NETWORK_ERROR";
+
 /** Number of failing paths named in an INVALID_SNAPSHOT error. */
 const MAX_ISSUE_PATHS = 3;
 
@@ -56,10 +63,8 @@ const request = async <T>(
   try {
     res = await fetchFn(url, init);
   } catch (error) {
-    return {
-      status: "error",
-      error: error instanceof Error ? error.message : "NETWORK_ERROR",
-    };
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    return { status: "error", error: `${NETWORK_ERROR}${detail}` };
   }
   if (!res.ok) {
     return { status: nextStatus(res.status), error: await errorCode(res) };
@@ -112,11 +117,18 @@ export const getRunRequest = (
     RunSnapshotSchema,
   );
 
+/** Without maxTurns the server applies its default (StepBody). */
 export const stepRunRequest = (
   fetchFn: FetchFn,
   runId: string,
+  maxTurns?: StepBody["maxTurns"],
 ): Promise<RunResponse<StepResult>> =>
-  request(fetchFn, `${runPath(runId)}/step`, post({}), StepResultSchema);
+  request(
+    fetchFn,
+    `${runPath(runId)}/step`,
+    post(maxTurns === undefined ? {} : ({ maxTurns } satisfies StepBody)),
+    StepResultSchema,
+  );
 
 export const disruptRunRequest = (
   fetchFn: FetchFn,

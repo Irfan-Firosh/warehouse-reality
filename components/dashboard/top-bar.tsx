@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { type ReactNode, useCallback, useRef, useState } from "react";
 import { TextureButton } from "@/components/ui/texture-button";
+import type { RunStatus } from "@/lib/dashboard/project-run";
+import { runStatusLabel } from "@/lib/dashboard/run-state";
 import { useDismiss } from "./use-dismiss";
 
 const PILL =
@@ -20,12 +22,19 @@ const MENU_ITEM =
   "inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors duration-150 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800";
 
 interface TopBarProps {
-  logicalTime: string;
+  /** The run's logical clock, or null before a run exists. */
+  logicalTime: string | null;
+  /** The hook's run status, e.g. "missing" after a 404. */
+  runStatus: RunStatus;
+  /** Display pacing only: freezes the ambient motion, never the run. */
   isPaused: boolean;
   speed: 1 | 4 | 16;
-  isDeliberating?: boolean;
+  /** A run request is in flight. */
+  busy?: boolean;
+  /** A live run exists and nothing else holds it. */
+  canStep: boolean;
   onTogglePause: () => void;
-  onNextEvent: () => void;
+  onStep: () => void;
   onChangeSpeed: (speed: 1 | 4 | 16) => void;
   onOpenDisruptionModal: () => void;
 }
@@ -33,19 +42,19 @@ interface TopBarProps {
 /** Name, logical clock and run controls: the only chrome that stays on screen. */
 export const TopBar = ({
   logicalTime,
+  runStatus,
   isPaused,
   speed,
-  isDeliberating = false,
+  busy = false,
+  canStep,
   onTogglePause,
-  onNextEvent,
+  onStep,
   onChangeSpeed,
   onOpenDisruptionModal,
 }: TopBarProps) => {
-  const status = isDeliberating
-    ? "NVIDIA model deliberating"
-    : isPaused
-      ? "Paused · agents standby"
-      : "Running";
+  const status = runStatusLabel(runStatus, busy);
+  const failed = !busy && (runStatus === "missing" || runStatus === "error");
+  const needsRun = canStep ? undefined : "Start a run first";
   return (
     <header className={PILL}>
       <span className="flex items-center gap-2 px-1.5">
@@ -58,29 +67,31 @@ export const TopBar = ({
       </span>
       <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
       <span
-        className="flex items-center gap-1.5 px-1.5 font-mono text-xs font-semibold tabular-nums text-blue-600 dark:text-blue-400"
-        title={status}
+        className={`flex items-center gap-1.5 px-1.5 font-mono text-xs font-semibold tabular-nums ${failed ? "text-red-700 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}
+        title={`${status} · logical time from the engine`}
       >
         <span
-          className={`size-1.5 rounded-full bg-blue-500 ${isDeliberating ? "animate-ping" : isPaused ? "" : "animate-pulse"}`}
+          className={`size-1.5 rounded-full ${failed ? "bg-red-500" : "bg-blue-500"} ${busy ? "animate-ping" : ""}`}
         />
-        <span className="sr-only">{status} · </span>
-        Day 1 · {logicalTime}
+        <span className={failed ? "" : "sr-only"}>{status} · </span>
+        {logicalTime ?? "no run"}
       </span>
       <TextureButton
         variant="icon"
         size="icon"
         onClick={onTogglePause}
-        aria-label={isPaused ? "Resume simulation" : "Pause simulation"}
+        aria-label={isPaused ? "Resume ambient motion" : "Pause ambient motion"}
+        title="Display pacing only; the run does not change"
       >
         {isPaused ? <Play className={ICON} /> : <Pause className={ICON} />}
       </TextureButton>
       <TextureButton
         variant="icon"
         size="icon"
-        onClick={onNextEvent}
-        aria-label="Advance to the next scheduled event"
-        title="Next event"
+        onClick={onStep}
+        disabled={!canStep}
+        aria-label="Step the run: woken agents take their turns"
+        title={needsRun ?? "Step the run"}
       >
         <SkipForward className={ICON} />
       </TextureButton>
@@ -106,7 +117,9 @@ export const TopBar = ({
         size="sm"
         className="w-auto"
         onClick={onOpenDisruptionModal}
+        disabled={!canStep}
         aria-label="Inject a disruption"
+        title={needsRun ?? "Inject a hypothetical disruption into the run"}
       >
         <Zap className="size-3.5" />
         <span className="hidden sm:inline">Disruption</span>
@@ -122,7 +135,6 @@ interface ViewMenuProps {
   onToggleFacility: () => void;
   onToggleInspector: () => void;
   onOpenEvidence: () => void;
-  onCheckpoint: () => void;
   /** The scene settings button and its pane. */
   settings: ReactNode;
 }
@@ -130,15 +142,10 @@ interface ViewMenuProps {
 interface MoreMenuProps {
   unknownCount: number;
   onOpenEvidence: () => void;
-  onCheckpoint: () => void;
 }
 
 /** The "⋯" menu: closes on a pick, an outside press or Escape (which then stops there). */
-const MoreMenu = ({
-  unknownCount,
-  onOpenEvidence,
-  onCheckpoint,
-}: MoreMenuProps) => {
+const MoreMenu = ({ unknownCount, onOpenEvidence }: MoreMenuProps) => {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -179,14 +186,6 @@ const MoreMenu = ({
           >
             Evidence · {unknownCount} unknowns
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={pick(onCheckpoint)}
-            className={MENU_ITEM}
-          >
-            ⚑ Checkpoint
-          </button>
         </div>
       )}
     </div>
@@ -201,7 +200,6 @@ export const ViewMenu = ({
   onToggleFacility,
   onToggleInspector,
   onOpenEvidence,
-  onCheckpoint,
   settings,
 }: ViewMenuProps) => (
   <nav className={`${PILL} ml-auto`} aria-label="Panels">
@@ -226,10 +224,6 @@ export const ViewMenu = ({
       Inspector
     </TextureButton>
     {settings}
-    <MoreMenu
-      unknownCount={unknownCount}
-      onOpenEvidence={onOpenEvidence}
-      onCheckpoint={onCheckpoint}
-    />
+    <MoreMenu unknownCount={unknownCount} onOpenEvidence={onOpenEvidence} />
   </nav>
 );

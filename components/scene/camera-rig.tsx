@@ -7,6 +7,7 @@ import {
   type Bounds,
   fitCamera,
   type ScreenInsets,
+  sameBounds,
   type ViewAngles,
 } from "@/lib/scene/camera-fit";
 
@@ -72,7 +73,7 @@ export const CameraRig = ({
     const last = fitted.current;
     const reset =
       !last ||
-      last.bounds !== bounds ||
+      !sameBounds(last.bounds, bounds) ||
       last.view !== view ||
       last.home !== homeSignal;
     if (moved.current && !reset) return;

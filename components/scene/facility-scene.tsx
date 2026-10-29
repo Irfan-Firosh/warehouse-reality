@@ -68,6 +68,8 @@ export interface FacilitySceneProps {
   view?: ViewSettings;
   /** Display pacing for the motion; 4× and 16× step at 8 Hz. */
   speed?: DisplaySpeed;
+  /** Freezes the ambient motion in place; display pacing only. */
+  paused?: boolean;
   /** The truck the camera chases, or null. */
   followId?: string | null;
   onFollow?: (id: string | null) => void;
@@ -88,17 +90,20 @@ const isTyping = (e: KeyboardEvent): boolean => {
 };
 
 export const FacilityScene = ({
-  state = ILLUSTRATIVE_STATE,
+  state: runState,
   selectedId,
   onSelectEntity,
   view = DEFAULT_VIEW,
   speed = 1,
+  paused = false,
   followId: followProp,
   onFollow,
   homeSignal: homeProp = 0,
   onStatus,
 }: FacilitySceneProps) => {
   const palette = usePalette();
+  const fromRun = runState !== undefined;
+  const state = runState ?? ILLUSTRATIVE_STATE;
   const entities = useMemo(() => entitiesById(state), [state]);
   const exceptions = useMemo(() => exceptionOptions(state), [state]);
   const layout = useMemo(
@@ -253,7 +258,7 @@ export const FacilityScene = ({
         onCreated={onCreated}
         onPointerMissed={onPointerMissed}
         role="img"
-        aria-label="Schematic 3D view of DFW Commerce Center Building I with an illustrative run state"
+        aria-label={`Schematic 3D view of DFW Commerce Center Building I with ${fromRun ? "the run's engine state" : "an illustrative state"}`}
       >
         <MotionClock
           motion={motion}
@@ -262,6 +267,7 @@ export const FacilityScene = ({
           version={poseVersion}
           clock={clock}
           on={view.ambient}
+          paused={paused}
           speed={speed}
         />
         <color attach="background" args={[palette.bg]} />
@@ -330,6 +336,7 @@ export const FacilityScene = ({
       </Canvas>
       <SceneOverlay
         meshes={meshes}
+        fromRun={fromRun}
         graphicsLost={graphicsLost}
         exceptions={exceptions}
         selected={selectedEntity}

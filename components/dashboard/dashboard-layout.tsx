@@ -1,62 +1,91 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { SceneStatus } from "@/components/scene/facility-scene";
 import { SceneLoader } from "@/components/scene/scene-loader";
-import { UNKNOWN_DFW_FIELDS } from "@/lib/dashboard/data";
-import { useSimulation } from "@/lib/dashboard/use-simulation";
+import {
+  calculateDashboardCounts,
+  TIMELINE_EVENTS,
+  UNKNOWN_DFW_FIELDS,
+} from "@/lib/dashboard/data";
+import { failureOf, type GuidedApi } from "@/lib/dashboard/guided-demo";
+import { callsWithoutUsage } from "@/lib/dashboard/model-call-format";
+import { useRun } from "@/lib/dashboard/use-run";
+import type { DisruptionBody } from "@/lib/run/api-schemas";
+import { keepSameScene, sceneStateFromEngine } from "@/lib/scene/from-engine";
+import { ILLUSTRATIVE_STATE } from "@/lib/scene/illustrative-state";
+import type { SceneState } from "@/lib/scene/types";
 import { DEFAULT_VIEW, type ViewSettings } from "@/lib/scene/view-settings";
 import type { TabKey } from "@/types/dashboard";
+import { BudgetMeter } from "./budget-meter";
 import { CausalTimeline } from "./causal-timeline";
 import { DisruptionModal } from "./disruption-modal";
 import { FacilityPanel } from "./facility-panel";
+import { GuidedDemo } from "./guided-demo";
 import { InspectorPanel } from "./inspector-panel";
 import { SettingsPane } from "./settings-pane";
 import { TopBar, ViewMenu } from "./top-bar";
+
+/** Shown only before a run exists, and labelled illustrative wherever it appears. */
+const ILLUSTRATIVE_COUNTS = calculateDashboardCounts();
+
+const TOAST_MS = 3500;
 
 export const DashboardLayout = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("agent");
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const [disruptionModalOpen, setDisruptionModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [view, setView] = useState<ViewSettings>(DEFAULT_VIEW);
   const [followId, setFollowId] = useState<string | null>(null);
   const [homeSignal, setHomeSignal] = useState(0);
+  // Display pacing only: they change how the ambient motion plays, never the run.
+  const [isPaused, setIsPaused] = useState(false);
+  const [speed, setSpeed] = useState<1 | 4 | 16>(4);
+  const [guidedRunning, setGuidedRunning] = useState(false);
   const [sceneStatus, setSceneStatus] = useState<SceneStatus>({
     meshes: "loading",
     canFollow: false,
     graphicsLost: false,
   });
 
-  // Authoritative simulation & agent integration
-  const {
-    logicalTime,
-    stateVersion,
-    isPaused,
-    speed,
-    isDeliberating,
-    activeAgentId,
-    agents,
-    commitments,
-    timelineEvents,
-    counts,
-    lastDeliberation,
-    togglePause,
-    setSpeed,
-    setActiveAgentId,
-    nextStep,
-    injectDisruption,
-    triggerAgentDeliberation,
-    createCheckpoint,
-  } = useSimulation();
+  // The server-owned run is the only source of run state.
+  const run = useRun();
+  const { snapshot, view: runView } = run;
+  // A run update that moved nothing keeps the same scene object, so the camera,
+  // layout and ambient motion are not rebuilt on every step.
+  const lastScene = useRef<SceneState | undefined>(undefined);
+  const runScene = useMemo(() => {
+    if (!snapshot) return undefined;
+    const next = keepSameScene(
+      lastScene.current,
+      sceneStateFromEngine(snapshot.engine),
+    );
+    lastScene.current = next;
+    return next;
+  }, [snapshot]);
+  const shownScene = runScene ?? ILLUSTRATIVE_STATE;
+  const facilityRun = useMemo(
+    () =>
+      snapshot
+        ? {
+            runId: snapshot.runId,
+            mode: snapshot.mode,
+            stateVersion: snapshot.stateVersion,
+          }
+        : null,
+    [snapshot],
+  );
+  const canStep = run.canStep && !guidedRunning;
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
-    }, 3500);
+    }, TOAST_MS);
   }, []);
 
   const handleSelectEntity = useCallback((id: string | null) => {
@@ -71,24 +100,42 @@ export const DashboardLayout = () => {
     setActiveTab("evidence");
   }, []);
 
-  const handleInjectDisruption = useCallback(
-    async (disruptionId: string) => {
-      showToast(
-        `Injected ${disruptionId} disruption into authoritative engine`,
-      );
-      await injectDisruption(disruptionId);
+  const handleStep = useCallback(async () => {
+    const r = await run.step();
+    const failure = failureOf(r);
+    showToast(
+      failure
+        ? `Step failed: ${failure}`
+        : `Stepped · run ${r.snapshot?.status ?? "unknown"}`,
+    );
+  }, [run.step, showToast]);
 
-      if (disruptionId === "H-1") {
-        handleSelectEntity("D-108");
-        setActiveAgentId("DOCK-C");
-        setActiveTab("agent");
-      } else if (disruptionId === "H-2") {
-        handleSelectEntity("F-07");
-        setActiveAgentId("SUP-1");
-        setActiveTab("agent");
+  const handleInjectDisruption = useCallback(
+    async (body: DisruptionBody) => {
+      const r = await run.disrupt(body);
+      const failure = failureOf(r);
+      if (failure) {
+        showToast(`Disruption failed: ${failure}`);
+        return;
       }
+      showToast(`Injected ${body.type} on ${body.targetId} into the run`);
+      handleSelectEntity(body.targetId);
     },
-    [handleSelectEntity, injectDisruption, setActiveAgentId, showToast],
+    [run.disrupt, handleSelectEntity, showToast],
+  );
+
+  // The guided flow uses the hook's actions; a successful closure selects the door.
+  const guidedApi = useMemo<GuidedApi>(
+    () => ({
+      start: run.start,
+      step: run.step,
+      disrupt: async (body) => {
+        const r = await run.disrupt(body);
+        if (!failureOf(r)) setSelectedId(body.targetId);
+        return r;
+      },
+    }),
+    [run.start, run.step, run.disrupt],
   );
 
   return (
@@ -98,7 +145,9 @@ export const DashboardLayout = () => {
         <SceneLoader
           selectedId={selectedId}
           onSelectEntity={handleSelectEntity}
+          state={runScene}
           speed={speed}
+          paused={isPaused}
           view={view}
           followId={followId}
           onFollow={setFollowId}
@@ -126,22 +175,42 @@ export const DashboardLayout = () => {
       <div className="pointer-events-none absolute inset-x-3 top-3 bottom-16 z-20 flex flex-col gap-2">
         <div className="flex flex-wrap items-start gap-2">
           <TopBar
-            logicalTime={logicalTime}
+            logicalTime={runView?.clock ?? null}
+            runStatus={run.status}
             isPaused={isPaused}
             speed={speed}
-            isDeliberating={isDeliberating}
-            onTogglePause={() => {
-              togglePause();
-              showToast(isPaused ? "Simulation resumed" : "Simulation paused");
-            }}
-            onNextEvent={async () => {
-              showToast("Advancing engine clock & stepping agent deliberation");
-              await nextStep();
-            }}
+            busy={run.busy || guidedRunning}
+            canStep={canStep}
+            onTogglePause={() => setIsPaused((p) => !p)}
+            onStep={handleStep}
             onChangeSpeed={setSpeed}
             onOpenDisruptionModal={() => setDisruptionModalOpen(true)}
           />
-          <CausalTimeline events={timelineEvents} />
+          <GuidedDemo
+            run={guidedApi}
+            busy={run.busy && !guidedRunning}
+            onRunningChange={setGuidedRunning}
+          >
+            {runView && snapshot && (
+              <BudgetMeter
+                budget={runView.budget}
+                unreportedCalls={callsWithoutUsage(
+                  runView,
+                  snapshot.modelCalls,
+                )}
+                compact
+              />
+            )}
+            {run.status === "missing" && !guidedRunning && (
+              <span className="text-red-700 dark:text-red-400">
+                Run not found on the server; run the scenario again.
+              </span>
+            )}
+          </GuidedDemo>
+          <CausalTimeline
+            events={runView?.timeline ?? TIMELINE_EVENTS}
+            runId={snapshot?.runId ?? null}
+          />
           <ViewMenu
             facilityOpen={leftOpen}
             inspectorOpen={rightOpen}
@@ -149,7 +218,6 @@ export const DashboardLayout = () => {
             onToggleFacility={() => setLeftOpen((o) => !o)}
             onToggleInspector={() => setRightOpen((o) => !o)}
             onOpenEvidence={handleOpenEvidence}
-            onCheckpoint={() => showToast(createCheckpoint())}
             settings={
               <SettingsPane
                 view={view}
@@ -178,8 +246,9 @@ export const DashboardLayout = () => {
         <div className="relative min-h-0 flex-1">
           <FacilityPanel
             isOpen={leftOpen}
-            counts={counts}
-            stateVersion={stateVersion}
+            counts={runView?.counts ?? ILLUSTRATIVE_COUNTS}
+            run={facilityRun}
+            scene={shownScene}
             onToggle={() => setLeftOpen((o) => !o)}
             onSelectEntity={handleSelectEntity}
             onOpenEvidence={handleOpenEvidence}
@@ -192,13 +261,11 @@ export const DashboardLayout = () => {
             onToggle={() => setRightOpen((o) => !o)}
             onSelectTab={setActiveTab}
             onSelectEntity={handleSelectEntity}
-            agents={agents}
+            view={runView}
+            calls={snapshot?.modelCalls ?? []}
+            scene={shownScene}
             activeAgentId={activeAgentId}
             onSelectAgent={setActiveAgentId}
-            onTriggerDeliberation={triggerAgentDeliberation}
-            isDeliberating={isDeliberating}
-            lastDeliberation={lastDeliberation}
-            commitments={commitments}
           />
         </div>
       </div>

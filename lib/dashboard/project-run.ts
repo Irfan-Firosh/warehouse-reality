@@ -36,7 +36,10 @@ export type RunCounts = Omit<DashboardCounts, "outboundBlocked"> & {
 export interface RunTimelineEvent extends TimelineEvent {
   provenance: Provenance;
   reasonCode?: string;
+  /** Set on the agent turn of a model call only. */
   modelCallId?: string;
+  /** The rejected call this event reports: its turn and its tool_rejected mirror. */
+  rejectedCallId?: string;
   sources?: RunSource[];
 }
 
@@ -215,9 +218,9 @@ const projectEvent = (
       ? (callProvenance(call, e.provenance) ?? e.provenance)
       : e.provenance;
   const refusedCode = refusedDisruptionCode(e);
-  const reasonCode =
-    refusedCode ??
-    (call?.outcome === "rejected" && mirrorsCall ? call.reasonCode : undefined);
+  const rejectedCall =
+    call?.outcome === "rejected" && mirrorsCall ? call : undefined;
+  const reasonCode = refusedCode ?? rejectedCall?.reasonCode;
   const title =
     reasonCode && !e.summary.includes(reasonCode)
       ? `${e.summary} · ${reasonCode}`
@@ -238,8 +241,26 @@ const projectEvent = (
     provenance,
     ...(reasonCode ? { reasonCode } : {}),
     ...(isTurn ? { modelCallId: call.id } : {}),
+    ...(rejectedCall ? { rejectedCallId: rejectedCall.id } : {}),
     ...(e.sources ? { sources: e.sources } : {}),
   };
+};
+
+/**
+ * Every rejected or refused move once: a rejected call shows as its turn and
+ * its tool_rejected mirror, so only the first event per call is kept.
+ */
+export const rejectedMoves = (
+  timeline: readonly RunTimelineEvent[],
+): RunTimelineEvent[] => {
+  const seen = new Set<string>();
+  return timeline.filter((e) => {
+    if (!e.reasonCode) return false;
+    if (!e.rejectedCallId) return true;
+    if (seen.has(e.rejectedCallId)) return false;
+    seen.add(e.rejectedCallId);
+    return true;
+  });
 };
 
 const summarize = (

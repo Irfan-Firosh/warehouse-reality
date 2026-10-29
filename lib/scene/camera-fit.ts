@@ -74,6 +74,10 @@ export const layoutBounds = (
   return { min: [min[0], min[1], min[2]], max: [max[0], max[1], max[2]] };
 };
 
+/** Same extent by value, so a rebuilt but unchanged layout never refits the camera. */
+export const sameBounds = (a: Bounds, b: Bounds): boolean =>
+  [0, 1, 2].every((i) => a.min[i] === b.min[i] && a.max[i] === b.max[i]);
+
 const dot = (a: Vec3, b: Vec3): number =>
   a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

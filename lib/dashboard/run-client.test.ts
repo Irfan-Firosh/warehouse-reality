@@ -112,7 +112,17 @@ describe("run client", () => {
     const res = await replayRequest(async () => {
       throw new Error("offline");
     }, "/runs/x.json");
-    expect(res).toEqual({ status: "error", error: "offline" });
+    expect(res).toEqual({ status: "error", error: "NETWORK_ERROR: offline" });
+  });
+
+  it("sends maxTurns only when asked, so the server default applies otherwise", async () => {
+    const fetchFn = vi.fn<FetchFn>(respond({ error: "RUN_BUSY" }, 409));
+    await stepRunRequest(fetchFn, "r", 1);
+    await stepRunRequest(fetchFn, "r");
+    const bodies = fetchFn.mock.calls.map(([, init]) =>
+      JSON.parse(String(init?.body)),
+    );
+    expect(bodies).toEqual([{ maxTurns: 1 }, {}]);
   });
 
   it("creates a d108 run through /api/runs only", async () => {

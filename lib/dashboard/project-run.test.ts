@@ -11,7 +11,7 @@ import type {
   TurnDecision,
 } from "@/types/run";
 import { calculateDashboardCounts } from "./data";
-import { nextStatus, projectRun } from "./project-run";
+import { nextStatus, projectRun, rejectedMoves } from "./project-run";
 
 const TIERS: Record<AgentRole, ModelTier> = {
   driver: "nano",
@@ -249,6 +249,46 @@ describe("projectRun", () => {
         (c) => c.outcome === "rejected" && c.reasonCode === "PERMISSION_DENIED",
       ),
     ).toBe(true);
+  });
+
+  it("lists each rejected call once, as its turn, though its mirror also carries the reason", async () => {
+    const run = makeRun(
+      new ScriptedDeliberator({
+        "DRV-047": [
+          {
+            thought: "driver tries to commit",
+            toolCall: {
+              tool: "commit",
+              parameters: { commitmentId: "C-1", requestId: "REQ-X" },
+            },
+            call: scriptedCall(),
+          },
+        ],
+      }),
+    );
+    closeD108(run);
+    const snap = await stepToDone(run);
+    const view = projectRun(snap);
+    const rejectedCalls = snap.modelCalls.filter(
+      (c) => c.outcome === "rejected",
+    );
+    expect(rejectedCalls.length).toBeGreaterThan(0);
+    expect(
+      view.timeline.filter((t) => t.reasonCode === "PERMISSION_DENIED").length,
+    ).toBeGreaterThan(rejectedCalls.length);
+
+    const moves = rejectedMoves(view.timeline);
+    expect(moves.map((m) => m.rejectedCallId)).toEqual(
+      rejectedCalls.map((c) => c.id),
+    );
+    expect(moves.every((m) => m.modelCallId === m.rejectedCallId)).toBe(true);
+  });
+
+  it("keeps a refused disruption in the rejected moves", () => {
+    const run = makeRun(new ScriptedDeliberator({}));
+    run.injectDisruption({ type: "dock_closure", targetId: "D-999" });
+    const moves = rejectedMoves(projectRun(run.snapshot()).timeline);
+    expect(moves.map((m) => m.reasonCode)).toEqual(["NOT_FOUND"]);
   });
 
   it("passes engine commitments, agents and budget through, and unknown tokens stay null", async () => {

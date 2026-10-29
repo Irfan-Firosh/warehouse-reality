@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SimulationEngine } from "@/lib/engine/engine";
 import type { TrailerEntity } from "@/lib/engine/types";
 import { S1 } from "./facility";
-import { sceneStateFromEngine } from "./from-engine";
+import { keepSameScene, sceneStateFromEngine } from "./from-engine";
 import { buildLayout, movingPair } from "./layout";
 
 const engineWithT2291 = (): SimulationEngine => {
@@ -241,5 +241,24 @@ describe("sceneStateFromEngine", () => {
       { id: "F-07", kind: "forklift", index: 0, status: "failed" },
     ]);
     expect(() => buildLayout(s, ["D-108", "D-112"])).not.toThrow();
+  });
+});
+
+describe("keepSameScene", () => {
+  it("keeps the previous state when a new snapshot changed nothing the scene draws", () => {
+    const engine = engineWithT2291();
+    const first = sceneStateFromEngine(engine.createCheckpoint());
+    const again = sceneStateFromEngine(engine.createCheckpoint());
+    expect(again).not.toBe(first);
+    expect(keepSameScene(first, again)).toBe(first);
+  });
+
+  it("takes the new state when something changed, or when there was none", () => {
+    const engine = engineWithT2291();
+    const before = sceneStateFromEngine(engine.createCheckpoint());
+    engine.injectDisruption("H-1", "dock_closure", "D-108");
+    const after = sceneStateFromEngine(engine.createCheckpoint());
+    expect(keepSameScene(before, after)).toBe(after);
+    expect(keepSameScene(undefined, after)).toBe(after);
   });
 });

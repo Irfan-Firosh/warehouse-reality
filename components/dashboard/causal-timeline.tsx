@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { TIMELINE_EVENTS } from "@/lib/dashboard/data";
+import type { RunTimelineEvent } from "@/lib/dashboard/project-run";
 import type { TimelineEvent, TimelineEventType } from "@/types/dashboard";
-import { ProvenanceBadge } from "./provenance-badge";
+import { ProvenanceBadge, RunProvenanceBadge } from "./provenance-badge";
+
+/** An illustrative event, or a run event with its provenance and reason. */
+export type DisplayEvent = TimelineEvent &
+  Partial<Pick<RunTimelineEvent, "provenance" | "reasonCode" | "sources">>;
 
 const CARD_STYLES: Record<TimelineEventType, string> = {
   disruption:
@@ -25,22 +29,20 @@ const CARD_STYLES: Record<TimelineEventType, string> = {
 };
 
 interface CausalTimelineProps {
-  events?: readonly TimelineEvent[];
+  events: readonly DisplayEvent[];
+  /** The server run these events come from; null for the illustrative chain. */
+  runId: string | null;
 }
 
 /** The newest event that has happened; scheduled ones are still in the future. */
-const latestOf = (
-  events: readonly TimelineEvent[],
-): TimelineEvent | undefined =>
+const latestOf = (events: readonly DisplayEvent[]): DisplayEvent | undefined =>
   events.findLast((e) => e.type !== "scheduled") ?? events[0];
 
 /**
  * One line with the latest event; it opens into the full causal chain on a
  * line of its own. Both are items of the parent flex-wrap row.
  */
-export const CausalTimeline = ({
-  events = TIMELINE_EVENTS,
-}: CausalTimelineProps) => {
+export const CausalTimeline = ({ events, runId }: CausalTimelineProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const latest = latestOf(events);
 
@@ -65,7 +67,13 @@ export const CausalTimeline = ({
         ) : (
           <span>No events yet</span>
         )}
-        <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+        {runId === null ? (
+          <ProvenanceBadge kind="ill">illus→sim</ProvenanceBadge>
+        ) : (
+          latest?.provenance && (
+            <RunProvenanceBadge provenance={latest.provenance} />
+          )
+        )}
       </button>
 
       {isOpen && (
@@ -75,7 +83,9 @@ export const CausalTimeline = ({
         >
           <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
             <span className="font-semibold uppercase tracking-wider">
-              Causal timeline · Disruption H-1 → Commitment C-88
+              {runId === null
+                ? "Causal timeline · illustrative · Disruption H-1 → Commitment C-88"
+                : `Causal timeline · run ${runId.slice(0, 8)} · ${events.length} events`}
             </span>
             <span className="hidden font-mono sm:inline">
               Inference reported separately from logical time
@@ -91,10 +101,15 @@ export const CausalTimeline = ({
                     <span className="font-mono text-[10px] opacity-75">
                       {evt.time}
                     </span>
-                    {evt.tag && (
-                      <ProvenanceBadge kind="hyp">{evt.tag}</ProvenanceBadge>
+                    {evt.provenance && (
+                      <RunProvenanceBadge provenance={evt.provenance} />
                     )}
-                    {evt.isLLM && (
+                    {evt.tag &&
+                      evt.tag !== evt.provenance &&
+                      !evt.reasonCode && (
+                        <ProvenanceBadge kind="hyp">{evt.tag}</ProvenanceBadge>
+                      )}
+                    {evt.isLLM && !evt.provenance && (
                       <span className="rounded bg-blue-100 px-1 text-[9px] font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
                         LLM
                       </span>
@@ -106,6 +121,24 @@ export const CausalTimeline = ({
                   <div className="max-w-44 truncate" title={evt.title}>
                     {evt.title}
                   </div>
+                  {evt.reasonCode && (
+                    <div className="font-mono text-[10px] font-semibold">
+                      {evt.tag === "refused" ? "refused" : "rejected"} ·{" "}
+                      {evt.reasonCode}
+                    </div>
+                  )}
+                  {evt.sources?.map((src) => (
+                    <a
+                      key={src.url}
+                      href={src.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="max-w-44 truncate text-[10px] underline"
+                      title={src.url}
+                    >
+                      {src.title}
+                    </a>
+                  ))}
                 </div>
                 {idx < events.length - 1 && (
                   <span className="select-none text-xs text-zinc-400">→</span>

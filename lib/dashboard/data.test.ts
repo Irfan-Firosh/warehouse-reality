@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ILLUSTRATIVE_STATE } from "@/lib/scene/illustrative-state";
 import {
   calculateDashboardCounts,
   DEPENDENCIES,
@@ -21,16 +22,16 @@ describe("Dashboard Data & Accounting", () => {
   });
 
   it("filters entities accurately by kind", () => {
-    const doors = getEntitiesForFilter("doors");
+    const doors = getEntitiesForFilter("doors", ILLUSTRATIVE_STATE);
     expect(doors.length).toBe(186); // 182 dock doors + 4 ramps
 
-    const stalls = getEntitiesForFilter("stalls");
+    const stalls = getEntitiesForFilter("stalls", ILLUSTRATIVE_STATE);
     expect(stalls.length).toBe(235); // S1 trailer spaces
 
-    const trailers = getEntitiesForFilter("trailers");
+    const trailers = getEntitiesForFilter("trailers", ILLUSTRATIVE_STATE);
     expect(trailers.length).toBeGreaterThan(0);
 
-    const equipment = getEntitiesForFilter("equipment");
+    const equipment = getEntitiesForFilter("equipment", ILLUSTRATIVE_STATE);
     expect(equipment.length).toBeGreaterThan(0);
   });
 

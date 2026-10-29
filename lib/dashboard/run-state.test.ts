@@ -11,6 +11,7 @@ import {
   INITIAL_RUN_STATE,
   type RunRequestKind,
   type RunState,
+  runStatusLabel,
   settleRequest,
 } from "./run-state";
 
@@ -135,5 +136,15 @@ describe("run state", () => {
     expect(
       disruptionResponse({ status: "ready", data: applied }).error,
     ).toBeUndefined();
+  });
+});
+
+describe("runStatusLabel", () => {
+  it("says the run is gone or failed, never ready, after a 404 or an error", () => {
+    expect(runStatusLabel("missing", false)).toBe("Run not found");
+    expect(runStatusLabel("error", false)).toBe("Run error");
+    expect(runStatusLabel("ready", false)).toBe("Run ready");
+    expect(runStatusLabel("none", false)).toBe("No run yet");
+    expect(runStatusLabel("missing", true)).toBe("Run request in flight");
   });
 });

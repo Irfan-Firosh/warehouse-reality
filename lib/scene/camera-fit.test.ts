@@ -13,6 +13,7 @@ import {
   MINIATURE_VIEW,
   type ScreenInsets,
   SITE_BOUNDS,
+  sameBounds,
   type Vec3,
 } from "./camera-fit";
 import {
@@ -198,5 +199,32 @@ describe("chasePose", () => {
     expect(at(-CHASE_SWAP_FT - 1, south)).toBe(north);
     expect(at(CHASE_SWAP_FT - 1, north)).toBe(north);
     expect(at(CHASE_SWAP_FT + 1, north)).toBe(south);
+  });
+});
+
+describe("sameBounds", () => {
+  it("matches a rebuilt layout's bounds by value, not identity", () => {
+    const rebuilt = layoutBounds(
+      buildLayout(ILLUSTRATIVE_STATE, [CLOSED_DOOR, TARGET_DOOR]).values(),
+    );
+    expect(rebuilt).not.toBe(SCENE_BOUNDS);
+    expect(sameBounds(rebuilt, SCENE_BOUNDS)).toBe(true);
+  });
+
+  it("tells a grown extent apart on any axis", () => {
+    const grown = (axis: number): Bounds => ({
+      min: SCENE_BOUNDS.min,
+      max: SCENE_BOUNDS.max.map((v, i) => (i === axis ? v + 1 : v)) as [
+        number,
+        number,
+        number,
+      ],
+    });
+    for (const axis of [0, 1, 2]) {
+      expect(sameBounds(SCENE_BOUNDS, grown(axis))).toBe(false);
+    }
+    expect(sameBounds(SCENE_BOUNDS, { ...SCENE_BOUNDS, min: [0, 0, 0] })).toBe(
+      false,
+    );
   });
 });
